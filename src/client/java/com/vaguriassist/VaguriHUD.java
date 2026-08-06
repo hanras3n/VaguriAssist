@@ -11,27 +11,46 @@ public class VaguriHUD {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;
 
-        String text = "VaguriAssist by Hanrasen";
-        int x = mc.getWindow().getGuiScaledWidth() - mc.font.width(text) - 5;
         int y = 5;
 
+        String text = "VaguriAssist by Hanrasen";
+        int x = mc.getWindow().getGuiScaledWidth() - mc.font.width(text) - 5;
         drawGoldShimmerText(guiGraphics, mc.font, text, x, y);
+        y += 10;
 
         // Если NVP Mode включен, пишем снизу переливающимся текстом
         if (ModConfig.INSTANCE.nvpMode) {
             String nvpText = "NVP mode enabled";
             int nvpX = mc.getWindow().getGuiScaledWidth() - mc.font.width(nvpText) - 5;
-            int nvpY = y + 10;
-            drawRedYellowShimmerText(guiGraphics, mc.font, nvpText, nvpX, nvpY);
+            drawRedYellowShimmerText(guiGraphics, mc.font, nvpText, nvpX, y);
+            y += 10;
         }
 
         // Если HM Mode включен, пишем сине-голубым переливающимся текстом
         if (ModConfig.INSTANCE.hmMode) {
             String hmText = "HM mode enabled";
             int hmX = mc.getWindow().getGuiScaledWidth() - mc.font.width(hmText) - 5;
-            int hmY = y + (ModConfig.INSTANCE.nvpMode ? 20 : 10);
-            drawBlueCyanShimmerText(guiGraphics, mc.font, hmText, hmX, hmY);
+            drawBlueCyanShimmerText(guiGraphics, mc.font, hmText, hmX, y);
+            y += 10;
         }
+
+        // Таймер проверки: белый -> жёлтый (подход к 5 мин) -> красный (после 5 мин)
+        String nick = VaguriAssistClient.getCurrentNick();
+        if (!nick.isEmpty()) {
+            long elapsed = VaguriAssistClient.getCheckElapsedMs();
+            String timerText = "Проверка " + nick + " [" + formatTime(elapsed) + "]";
+            int color = elapsed >= VaguriAssistClient.FIVE_MIN_MS ? 0xFFFF5555
+                    : elapsed >= VaguriAssistClient.WARN_AT_MS ? 0xFFFFAA00 : 0xFFFFFFFF;
+            int timerX = mc.getWindow().getGuiScaledWidth() - mc.font.width(timerText) - 5;
+            guiGraphics.drawString(mc.font, timerText, timerX, y, color, true);
+        }
+    }
+
+    private static String formatTime(long ms) {
+        long totalSeconds = ms / 1000;
+        long minutes = totalSeconds / 60;
+        long seconds = totalSeconds % 60;
+        return String.format("%02d:%02d", minutes, seconds);
     }
 
     private static void drawGoldShimmerText(GuiGraphics g, Font font, String text, int x, int y) {

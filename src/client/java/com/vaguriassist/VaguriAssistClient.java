@@ -15,6 +15,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.sounds.SoundEvents;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.regex.Pattern;
@@ -30,12 +31,30 @@ public class VaguriAssistClient implements ClientModInitializer {
 	private static String pendingBanCommand = "";
 	private static long pendingBanTime = 0;
 
+	public static final long WARN_AT_MS = 4 * 60_000L + 30_000L;
+	public static final long FIVE_MIN_MS = 5 * 60_000L;
+	private static long checkStartTime = 0;
+	private static boolean warningPlayed = false;
+
 	public static String getCurrentNick() {
 		return currentNick;
 	}
 
 	public static void setCurrentNick(String nick) {
 		currentNick = nick == null ? "" : nick;
+		if (currentNick.isEmpty()) {
+			checkStartTime = 0;
+		} else {
+			checkStartTime = System.currentTimeMillis();
+		}
+		warningPlayed = false;
+	}
+
+	public static long getCheckElapsedMs() {
+		if (checkStartTime == 0) {
+			return 0;
+		}
+		return System.currentTimeMillis() - checkStartTime;
 	}
 
 	public static void clearCurrentNick() {
@@ -99,6 +118,15 @@ public class VaguriAssistClient implements ClientModInitializer {
 				String command = pendingBanCommand;
 				pendingBanCommand = "";
 				sendCommand(command);
+			}
+			if (checkStartTime != 0) {
+				long elapsed = System.currentTimeMillis() - checkStartTime;
+				if (!warningPlayed && elapsed >= WARN_AT_MS) {
+					warningPlayed = true;
+					if (client.player != null) {
+						client.player.playSound(SoundEvents.PLAYER_LEVELUP, 1.0f, 1.0f);
+					}
+				}
 			}
 			while (banKey.consumeClick()) {
 				if (currentNick.isEmpty()) {

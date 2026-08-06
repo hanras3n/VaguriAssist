@@ -1,6 +1,5 @@
 package com.vaguriassist;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
@@ -43,13 +42,14 @@ public class BanConfirmScreen extends Screen {
         confirmBtn = Button.builder(
                 Component.literal("Забанить"),
                 (b) -> {
-                    String cmd = command.startsWith("/") ? command.substring(1) : command;
-                    Minecraft mc = Minecraft.getInstance();
-                    if (mc.player != null) {
-                        mc.player.connection.sendCommand(cmd);
-                        mc.player.connection.sendCommand(cmd);
-                        mc.player.displayClientMessage(
-                                Component.literal("§8[§6VaguriAssist§8] §fОтправлено: §7/" + cmd), false);
+                    String clean = command.startsWith("/") ? command.substring(1) : command;
+                    String[] parts = clean.split(" ");
+                    String nick = parts.length >= 2 ? parts[1] : "";
+                    if (nick.isEmpty()) {
+                        VaguriAssistClient.sendCommand(command);
+                    } else {
+                        BanSender.sendFreezing(nick);
+                        VaguriAssistClient.scheduleBan(command, 100);
                     }
                     VaguriAssistClient.clearCurrentNick();
                     this.onClose();
