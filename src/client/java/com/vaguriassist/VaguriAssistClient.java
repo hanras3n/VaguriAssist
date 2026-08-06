@@ -30,6 +30,7 @@ public class VaguriAssistClient implements ClientModInitializer {
 	private static boolean sendingCommand = false;
 	private static String pendingBanCommand = "";
 	private static long pendingBanTime = 0;
+	private static Runnable pendingScreen = null;
 
 	public static final long WARN_AT_MS = 4 * 60_000L + 30_000L;
 	public static final long FIVE_MIN_MS = 5 * 60_000L;
@@ -119,6 +120,10 @@ public class VaguriAssistClient implements ClientModInitializer {
 				pendingBanCommand = "";
 				sendCommand(command);
 			}
+			if (pendingScreen != null) {
+				pendingScreen.run();
+				pendingScreen = null;
+			}
 			if (checkStartTime != 0) {
 				long elapsed = System.currentTimeMillis() - checkStartTime;
 				if (!warningPlayed && elapsed >= WARN_AT_MS) {
@@ -174,6 +179,12 @@ public class VaguriAssistClient implements ClientModInitializer {
 					.then(ClientCommandManager.literal("vk")
 							.executes(ctx -> {
 								ctx.getSource().sendFeedback(Component.literal("Текущая VK ссылка: " + ModConfig.get().vk));
+								return 1;
+							})));
+			dispatcher.register(ClientCommandManager.literal("va")
+					.then(ClientCommandManager.literal("ban")
+							.executes(ctx -> {
+								pendingScreen = () -> Minecraft.getInstance().setScreen(new ManualBanScreen());
 								return 1;
 							})));
 		});
