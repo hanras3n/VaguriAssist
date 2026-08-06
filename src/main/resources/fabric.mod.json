@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"id": "vaguriassist",
+	"version": "${version}",
+	"name": "VaguriAssist 1.21.11",
+	"description": "Полезный мод для модерации сервера HolyWorld",
+	"authors": [
+		"Hanrasen"
+	],
+	"license": "MIT",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"com.vaguriassist.VaguriAssistClient"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.19.3",
+		"minecraft": "~1.21.11",
+		"java": ">=21",
+		"fabric-api": "*"
+	}
+}
