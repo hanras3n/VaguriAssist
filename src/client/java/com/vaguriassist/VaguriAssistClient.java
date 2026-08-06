@@ -179,8 +179,7 @@ public class VaguriAssistClient implements ClientModInitializer {
 							.executes(ctx -> {
 								ctx.getSource().sendFeedback(Component.literal("Текущая VK ссылка: " + ModConfig.get().vk));
 								return 1;
-							})));
-			dispatcher.register(ClientCommandManager.literal("va")
+							}))
 					.then(ClientCommandManager.literal("ban")
 							.executes(ctx -> {
 								pendingScreen = () -> Minecraft.getInstance().setScreen(new ManualBanScreen());
