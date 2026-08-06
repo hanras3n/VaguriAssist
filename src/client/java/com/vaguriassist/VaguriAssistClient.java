@@ -27,6 +27,8 @@ public class VaguriAssistClient implements ClientModInitializer {
 	private static KeyMapping settingsKey;
 	private static String currentNick = "";
 	private static boolean sendingCommand = false;
+	private static String pendingBanCommand = "";
+	private static long pendingBanTime = 0;
 
 	public static String getCurrentNick() {
 		return currentNick;
@@ -42,6 +44,7 @@ public class VaguriAssistClient implements ClientModInitializer {
 
 	public static void sendCommand(String command) {
 		sendingCommand = true;
+		ChatScanner.setModSendingCommand(true);
 		try {
 			Minecraft minecraft = Minecraft.getInstance();
 			if (minecraft.getConnection() != null) {
@@ -53,8 +56,28 @@ public class VaguriAssistClient implements ClientModInitializer {
 			}
 		} finally {
 			sendingCommand = false;
+			ChatScanner.setModSendingCommand(false);
 		}
 		clearCurrentNick();
+	}
+
+	public static void sendRaw(String command) {
+		sendingCommand = true;
+		ChatScanner.setModSendingCommand(true);
+		try {
+			Minecraft minecraft = Minecraft.getInstance();
+			if (minecraft.getConnection() != null) {
+				minecraft.getConnection().sendCommand(command.substring(1));
+			}
+		} finally {
+			sendingCommand = false;
+			ChatScanner.setModSendingCommand(false);
+		}
+	}
+
+	public static void scheduleBan(String command, long delayMs) {
+		pendingBanCommand = command;
+		pendingBanTime = System.currentTimeMillis() + delayMs;
 	}
 
 	@Override
@@ -72,6 +95,11 @@ public class VaguriAssistClient implements ClientModInitializer {
 		));
 
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
+			if (!pendingBanCommand.isEmpty() && System.currentTimeMillis() >= pendingBanTime) {
+				String command = pendingBanCommand;
+				pendingBanCommand = "";
+				sendCommand(command);
+			}
 			while (banKey.consumeClick()) {
 				if (currentNick.isEmpty()) {
 					if (client.player != null) {

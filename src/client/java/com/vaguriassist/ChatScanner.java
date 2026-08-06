@@ -29,6 +29,10 @@ public class ChatScanner {
     private static Runnable scheduledAction = null;
     private static boolean isModSendingCommand = false;
 
+    public static void setModSendingCommand(boolean value) {
+        isModSendingCommand = value;
+    }
+
     private static final Queue<String> pendingNicks = new LinkedList<>();
     private static final Set<String> processedNicks = new HashSet<>();
     private static int bulkDelayTicks = 0;

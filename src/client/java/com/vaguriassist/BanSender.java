@@ -9,6 +9,11 @@ public final class BanSender {
 		send(buildCommand(nick, durationDays, paragraph, reason, byIp));
 	}
 
+	public static void sendWithUnfreeze(String nick, int durationDays, String paragraph, String reason, boolean byIp) {
+		sendFreezing(nick);
+		VaguriAssistClient.scheduleBan(buildCommand(nick, durationDays, paragraph, reason, byIp), 100);
+	}
+
 	public static void sendFreezing(String nick) {
 		send("/freezing " + nick);
 	}

@@ -69,7 +69,7 @@ public class BanScreen extends Screen {
 	}
 
 	private void autoBan(String reason, int defaultDays) {
-		BanSender.send(this.nick, defaultDays, "2.4", reason, true);
+		BanSender.sendWithUnfreeze(this.nick, defaultDays, "2.4", reason, true);
 		this.onClose();
 	}
 
@@ -84,7 +84,7 @@ public class BanScreen extends Screen {
 		if (paragraph.isEmpty()) {
 			paragraph = "2.4";
 		}
-		BanSender.send(this.nick, days, paragraph, reason, this.ipCheckbox.selected());
+		BanSender.sendWithUnfreeze(this.nick, days, paragraph, reason, this.ipCheckbox.selected());
 		this.onClose();
 	}
 
