@@ -49,35 +49,17 @@ public class ChatScanner {
 
             String cleanCommand = CLEAN_COLOR_CODES.matcher(command).replaceAll("");
 
-            if (ModConfig.INSTANCE.nvpMode) {
-                if (cleanCommand.startsWith("freezing ") || cleanCommand.startsWith("frz ")) {
-                    String[] parts = cleanCommand.split(" ");
-                    if (parts.length >= 2) {
-                        processedNicks.clear();
-                        mainTarget = parts[1];
-                        originalTarget = parts[1];
-                        processedNicks.add(originalTarget.toLowerCase());
-                        currentState = State.AWAITING_INITIAL_DUPE;
-                        timeoutTicks = TIMEOUT_TICKS;
-                        sendHiddenCommand("dupeip " + originalTarget);
-                        if (ModConfig.INSTANCE.DEBUG_MODE) System.out.println("[VaguriAssist] NVP Mode: Auto dupeip for " + originalTarget);
-                    }
-                }
-            }
-
-            if (ModConfig.INSTANCE.hmMode) {
-                if (cleanCommand.startsWith("hm freezing ") || cleanCommand.startsWith("hm frz ")) {
-                    String[] parts = cleanCommand.split(" ");
-                    if (parts.length >= 3) {
-                        processedNicks.clear();
-                        mainTarget = parts[2];
-                        originalTarget = parts[2];
-                        processedNicks.add(originalTarget.toLowerCase());
-                        currentState = State.AWAITING_INITIAL_DUPE;
-                        timeoutTicks = TIMEOUT_TICKS;
-                        sendHiddenCommand("dupeip " + originalTarget);
-                        if (ModConfig.INSTANCE.DEBUG_MODE) System.out.println("[VaguriAssist] HM Mode: Auto dupeip for " + originalTarget);
-                    }
+            if (cleanCommand.startsWith("freezing ") || cleanCommand.startsWith("frz ")) {
+                String[] parts = cleanCommand.split(" ");
+                if (parts.length >= 2) {
+                    processedNicks.clear();
+                    mainTarget = parts[1];
+                    originalTarget = parts[1];
+                    processedNicks.add(originalTarget.toLowerCase());
+                    currentState = State.AWAITING_INITIAL_DUPE;
+                    timeoutTicks = TIMEOUT_TICKS;
+                    sendHiddenCommand("dupeip " + originalTarget);
+                    if (ModConfig.INSTANCE.DEBUG_MODE) System.out.println("[VaguriAssist] Auto dupeip for " + originalTarget);
                 }
             }
 

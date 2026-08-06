@@ -153,8 +153,7 @@ public class VaguriAssistClient implements ClientModInitializer {
 				return true;
 			}
 			String clean = CLEAN_COLOR_CODES.matcher(command).replaceAll("");
-			if (clean.startsWith("freezing ") || clean.startsWith("frz ")
-					|| clean.startsWith("hm freezing ") || clean.startsWith("hm frz ")) {
+			if (clean.startsWith("freezing ") || clean.startsWith("frz ")) {
 				String[] parts = clean.split(" ");
 				String nick = parts[parts.length - 1].trim();
 				if (!nick.isEmpty()) {

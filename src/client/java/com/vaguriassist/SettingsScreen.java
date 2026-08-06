@@ -34,36 +34,18 @@ public class SettingsScreen extends Screen {
         ).bounds(x, y + 25, 200, 20).build());
 
         this.addRenderableWidget(Button.builder(
-                Component.literal("NVP Mode: " + (ModConfig.INSTANCE.nvpMode ? "ON" : "OFF")),
-                (b) -> {
-                    ModConfig.INSTANCE.nvpMode = !ModConfig.INSTANCE.nvpMode;
-                    b.setMessage(Component.literal("NVP Mode: " + (ModConfig.INSTANCE.nvpMode ? "ON" : "OFF")));
-                    ModConfig.save();
-                }
-        ).bounds(x, y + 50, 200, 20).build());
-
-        this.addRenderableWidget(Button.builder(
-                Component.literal("HM Mode: " + (ModConfig.INSTANCE.hmMode ? "ON" : "OFF")),
-                (b) -> {
-                    ModConfig.INSTANCE.hmMode = !ModConfig.INSTANCE.hmMode;
-                    b.setMessage(Component.literal("HM Mode: " + (ModConfig.INSTANCE.hmMode ? "ON" : "OFF")));
-                    ModConfig.save();
-                }
-        ).bounds(x, y + 75, 200, 20).build());
-
-        this.addRenderableWidget(Button.builder(
                 Component.literal("Debug Mode: " + (ModConfig.INSTANCE.DEBUG_MODE ? "ON" : "OFF")),
                 (b) -> {
                     ModConfig.INSTANCE.DEBUG_MODE = !ModConfig.INSTANCE.DEBUG_MODE;
                     b.setMessage(Component.literal("Debug Mode: " + (ModConfig.INSTANCE.DEBUG_MODE ? "ON" : "OFF")));
                     ModConfig.save();
                 }
-        ).bounds(x, y + 100, 200, 20).build());
+        ).bounds(x, y + 50, 200, 20).build());
 
         this.addRenderableWidget(Button.builder(
                 Component.literal("Done"),
                 (b) -> this.onClose()
-        ).bounds(x, y + 145, 200, 20).build());
+        ).bounds(x, y + 95, 200, 20).build());
     }
 
     @Override

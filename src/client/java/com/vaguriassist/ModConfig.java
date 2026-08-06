@@ -16,8 +16,6 @@ public class ModConfig {
 	public boolean DEBUG_MODE = false;
 	public boolean hudEnabled = true;
 	public boolean draggableBanWindow = true;
-	public boolean nvpMode = false;
-	public boolean hmMode = false;
 	public int banWindowX = -1;
 	public int banWindowY = -1;
 
