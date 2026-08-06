@@ -22,6 +22,9 @@ public class ModConfig {
 	public int hudY = -1;
 	public int timerX = -1;
 	public int timerY = -1;
+	public float hudScale = 1.0f;
+	public float timerScale = 1.0f;
+	public float banScale = 1.0f;
 
 	public static ModConfig INSTANCE = new ModConfig();
 

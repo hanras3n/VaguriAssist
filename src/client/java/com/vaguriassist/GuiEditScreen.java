@@ -12,6 +12,8 @@ import java.util.List;
 public class GuiEditScreen extends Screen {
 
     private static final int SNAP_DISTANCE = 12;
+    private static final float MIN_SCALE = 0.5f;
+    private static final float MAX_SCALE = 2.5f;
 
     private final List<Element> elements = new ArrayList<>();
     private Element dragging = null;
@@ -23,16 +25,27 @@ public class GuiEditScreen extends Screen {
         final String label;
         int x;
         int y;
-        final int width;
-        final int height;
+        final int baseWidth;
+        final int baseHeight;
+        float scale = 1.0f;
+        boolean moving = false;
+        boolean sliding = false;
 
-        Element(String id, String label, int x, int y, int width, int height) {
+        Element(String id, String label, int x, int y, int baseWidth, int baseHeight) {
             this.id = id;
             this.label = label;
             this.x = x;
             this.y = y;
-            this.width = width;
-            this.height = height;
+            this.baseWidth = baseWidth;
+            this.baseHeight = baseHeight;
+        }
+
+        int width() {
+            return Math.max(1, (int) (baseWidth * scale));
+        }
+
+        int height() {
+            return Math.max(1, (int) (baseHeight * scale));
         }
     }
 
@@ -43,38 +56,55 @@ public class GuiEditScreen extends Screen {
     @Override
     protected void init() {
         int hudW = this.font.width("VaguriAssist by Hanrasen");
-        int hudDefX = this.width - hudW - 5;
-        elements.add(new Element("hud", "Худ",
+        int hudDefX = this.width - (int) (hudW * ModConfig.INSTANCE.hudScale) - 5;
+        Element hud = new Element("hud", "Худ",
                 ModConfig.INSTANCE.hudX != -1 ? ModConfig.INSTANCE.hudX : hudDefX,
                 ModConfig.INSTANCE.hudY != -1 ? ModConfig.INSTANCE.hudY : 5,
-                hudW, 9));
+                hudW, 9);
+        hud.scale = ModConfig.INSTANCE.hudScale;
+        elements.add(hud);
 
         int timerW = this.font.width("Проверка Steve [00:00]");
-        int timerDefX = (this.width - timerW) / 2;
-        elements.add(new Element("timer", "Таймер",
+        int timerDefX = (this.width - (int) (timerW * ModConfig.INSTANCE.timerScale)) / 2;
+        Element timer = new Element("timer", "Таймер",
                 ModConfig.INSTANCE.timerX != -1 ? ModConfig.INSTANCE.timerX : timerDefX,
                 ModConfig.INSTANCE.timerY != -1 ? ModConfig.INSTANCE.timerY : this.height - 50,
-                timerW, 9));
+                timerW, 9);
+        timer.scale = ModConfig.INSTANCE.timerScale;
+        elements.add(timer);
 
-        int banW = 260;
-        int banH = 80;
-        int banDefX = this.width - banW - 10;
-        int banDefY = this.height - banH - 10;
-        elements.add(new Element("ban", "Бан-окно",
-                ModConfig.INSTANCE.banWindowX != -1 ? ModConfig.INSTANCE.banWindowX : banDefX,
-                ModConfig.INSTANCE.banWindowY != -1 ? ModConfig.INSTANCE.banWindowY : banDefY,
-                banW, banH));
+        Element ban = new Element("ban", "Бан-окно",
+                ModConfig.INSTANCE.banWindowX != -1 ? ModConfig.INSTANCE.banWindowX : this.width - 260 - 10,
+                ModConfig.INSTANCE.banWindowY != -1 ? ModConfig.INSTANCE.banWindowY : this.height - 80 - 10,
+                260, 80);
+        ban.scale = ModConfig.INSTANCE.banScale;
+        elements.add(ban);
 
         this.addRenderableWidget(Button.builder(Component.literal("Готово"), b -> this.onClose())
                 .bounds(this.width / 2 - 50, this.height - 30, 100, 20).build());
     }
 
+    private boolean isOnSlider(Element e, double mouseX, double mouseY) {
+        int sliderY = e.y + e.height() + 6;
+        return mouseX >= e.x && mouseX <= e.x + e.width() && mouseY >= sliderY && mouseY <= sliderY + 8;
+    }
+
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubled) {
         for (Element e : elements) {
-            if (event.x() >= e.x && event.x() <= e.x + e.width
-                    && event.y() >= e.y && event.y() <= e.y + e.height) {
+            if (isOnSlider(e, event.x(), event.y())) {
                 dragging = e;
+                e.sliding = true;
+                snapCenterX = false;
+                snapCenterY = false;
+                return true;
+            }
+        }
+        for (Element e : elements) {
+            if (event.x() >= e.x && event.x() <= e.x + e.width()
+                    && event.y() >= e.y && event.y() <= e.y + e.height()) {
+                dragging = e;
+                e.moving = true;
                 snapCenterX = false;
                 snapCenterY = false;
                 return true;
@@ -86,27 +116,41 @@ public class GuiEditScreen extends Screen {
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double offsetX, double offsetY) {
         if (dragging != null) {
-            dragging.x = (int) event.x() - (dragging.width / 2);
-            dragging.y = (int) event.y() - (dragging.height / 2);
-
-            int centerX = dragging.x + dragging.width / 2;
-            int centerY = dragging.y + dragging.height / 2;
-
-            snapCenterX = Math.abs(centerX - this.width / 2) <= SNAP_DISTANCE;
-            snapCenterY = Math.abs(centerY - this.height / 2) <= SNAP_DISTANCE;
-
-            if (snapCenterX) {
-                dragging.x = this.width / 2 - dragging.width / 2;
+            if (dragging.sliding) {
+                int sliderWidth = dragging.width();
+                float ratio = (float) (event.x() - dragging.x) / sliderWidth;
+                ratio = Math.max(0.0f, Math.min(1.0f, ratio));
+                dragging.scale = MIN_SCALE + (MAX_SCALE - MIN_SCALE) * ratio;
+                clampElement(dragging);
+                return true;
             }
-            if (snapCenterY) {
-                dragging.y = this.height / 2 - dragging.height / 2;
-            }
+            if (dragging.moving) {
+                dragging.x = (int) event.x() - (dragging.width() / 2);
+                dragging.y = (int) event.y() - (dragging.height() / 2);
 
-            dragging.x = Math.max(0, Math.min(this.width - dragging.width, dragging.x));
-            dragging.y = Math.max(0, Math.min(this.height - dragging.height, dragging.y));
-            return true;
+                int centerX = dragging.x + dragging.width() / 2;
+                int centerY = dragging.y + dragging.height() / 2;
+
+                snapCenterX = Math.abs(centerX - this.width / 2) <= SNAP_DISTANCE;
+                snapCenterY = Math.abs(centerY - this.height / 2) <= SNAP_DISTANCE;
+
+                if (snapCenterX) {
+                    dragging.x = this.width / 2 - dragging.width() / 2;
+                }
+                if (snapCenterY) {
+                    dragging.y = this.height / 2 - dragging.height() / 2;
+                }
+
+                clampElement(dragging);
+                return true;
+            }
         }
         return super.mouseDragged(event, offsetX, offsetY);
+    }
+
+    private void clampElement(Element e) {
+        e.x = Math.max(0, Math.min(this.width - e.width(), e.x));
+        e.y = Math.max(0, Math.min(this.height - e.height(), e.y));
     }
 
     @Override
@@ -116,17 +160,22 @@ public class GuiEditScreen extends Screen {
                 case "hud":
                     ModConfig.INSTANCE.hudX = dragging.x;
                     ModConfig.INSTANCE.hudY = dragging.y;
+                    ModConfig.INSTANCE.hudScale = dragging.scale;
                     break;
                 case "timer":
                     ModConfig.INSTANCE.timerX = dragging.x;
                     ModConfig.INSTANCE.timerY = dragging.y;
+                    ModConfig.INSTANCE.timerScale = dragging.scale;
                     break;
                 case "ban":
                     ModConfig.INSTANCE.banWindowX = dragging.x;
                     ModConfig.INSTANCE.banWindowY = dragging.y;
+                    ModConfig.INSTANCE.banScale = dragging.scale;
                     break;
             }
             ModConfig.save();
+            dragging.moving = false;
+            dragging.sliding = false;
             dragging = null;
             snapCenterX = false;
             snapCenterY = false;
@@ -141,7 +190,8 @@ public class GuiEditScreen extends Screen {
 
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 10, 0xFFFFFF);
         guiGraphics.drawCenteredString(this.font,
-                "Перетащи элемент — он сам прилипнет к центру", this.width / 2, 24, 0xA0A0A0);
+                "Перетащи элемент — прилипнет к центру. Ползунок под элементом меняет размер",
+                this.width / 2, 24, 0xA0A0A0);
 
         int centerX = this.width / 2;
         int centerY = this.height / 2;
@@ -154,17 +204,28 @@ public class GuiEditScreen extends Screen {
         }
 
         for (Element e : elements) {
-            guiGraphics.fill(e.x, e.y, e.x + e.width, e.y + e.height, 0x66000000);
-            guiGraphics.fill(e.x, e.y, e.x + e.width, e.y + 1, 0xFF888888);
-            guiGraphics.fill(e.x, e.y + e.height - 1, e.x + e.width, e.y + e.height, 0xFF888888);
-            guiGraphics.fill(e.x, e.y, e.x + 1, e.y + e.height, 0xFF888888);
-            guiGraphics.fill(e.x + e.width - 1, e.y, e.x + e.width, e.y + e.height, 0xFF888888);
+            int w = e.width();
+            int h = e.height();
+
+            guiGraphics.fill(e.x, e.y, e.x + w, e.y + h, 0x66000000);
+            guiGraphics.fill(e.x, e.y, e.x + w, e.y + 1, 0xFF888888);
+            guiGraphics.fill(e.x, e.y + h - 1, e.x + w, e.y + h, 0xFF888888);
+            guiGraphics.fill(e.x, e.y, e.x + 1, e.y + h, 0xFF888888);
+            guiGraphics.fill(e.x + w - 1, e.y, e.x + w, e.y + h, 0xFF888888);
 
             guiGraphics.drawString(this.font, e.label, e.x + 4, e.y + 1, 0xFFFFAA00, false);
 
             if (e.id.equals("ban")) {
-                guiGraphics.fill(e.x + 2, e.y + 12, e.x + e.width - 2, e.y + 14, 0xFFFF5555);
+                guiGraphics.fill(e.x + 2, e.y + 12, e.x + w - 2, e.y + 14, 0xFFFF5555);
             }
+
+            int sliderY = e.y + h + 6;
+            guiGraphics.fill(e.x, sliderY, e.x + w, sliderY + 4, 0xAA555555);
+            int handleX = e.x + 2 + (int) (((e.scale - MIN_SCALE) / (MAX_SCALE - MIN_SCALE)) * (w - 4));
+            guiGraphics.fill(handleX - 2, sliderY - 2, handleX + 2, sliderY + 6, 0xFF66CCFF);
+
+            String scaleLabel = String.format("%s: x%.2f", e.label, e.scale);
+            guiGraphics.drawString(this.font, scaleLabel, e.x + 4, sliderY + 6, 0xFFFFFFFF, false);
         }
     }
 

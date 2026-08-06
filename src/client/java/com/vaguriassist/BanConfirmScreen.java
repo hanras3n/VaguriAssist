@@ -11,8 +11,8 @@ public class BanConfirmScreen extends Screen {
 
     private int boxX;
     private int boxY;
-    private final int boxWidth = 260;
-    private final int boxHeight = 80;
+    private final int boxWidth = Math.max(120, (int) (260 * ModConfig.INSTANCE.banScale));
+    private final int boxHeight = Math.max(60, (int) (80 * ModConfig.INSTANCE.banScale));
 
     private boolean isDragging = false;
     private int dragOffsetX = 0;
@@ -59,7 +59,7 @@ public class BanConfirmScreen extends Screen {
         cancelBtn = Button.builder(
                 Component.literal("Отмена"),
                 (b) -> this.onClose()
-        ).bounds(boxX + 135, boxY + 55, 110, 20).build();
+        ).bounds(boxX + boxWidth - 125, boxY + 55, 110, 20).build();
 
         this.addRenderableWidget(confirmBtn);
         this.addRenderableWidget(cancelBtn);

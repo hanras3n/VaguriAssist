@@ -15,10 +15,12 @@ public class VaguriHUD {
         int screenHeight = mc.getWindow().getGuiScaledHeight();
 
         String text = "VaguriAssist by Hanrasen";
+        float hudScale = ModConfig.INSTANCE.hudScale;
         int x = ModConfig.INSTANCE.hudX != -1 ? ModConfig.INSTANCE.hudX
-                : screenWidth - mc.font.width(text) - 5;
+                : screenWidth - (int) (mc.font.width(text) * hudScale) - 5;
         int y = ModConfig.INSTANCE.hudY != -1 ? ModConfig.INSTANCE.hudY : 5;
-        drawGoldShimmerText(guiGraphics, mc.font, text, x, y);
+        drawScaled(guiGraphics, x, y, hudScale,
+                () -> drawGoldShimmerText(guiGraphics, mc.font, text, x, y));
 
         // Таймер проверки: переливается слева направо, меняет цвета по состоянию
         String nick = VaguriAssistClient.getCurrentNick();
@@ -37,12 +39,28 @@ public class VaguriHUD {
                 colorA = 0xFFFF69B4;
                 colorB = 0xFF9B30FF;
             }
+            float timerScale = ModConfig.INSTANCE.timerScale;
             int timerX = ModConfig.INSTANCE.timerX != -1 ? ModConfig.INSTANCE.timerX
-                    : (screenWidth - mc.font.width(timerText)) / 2;
+                    : (screenWidth - (int) (mc.font.width(timerText) * timerScale)) / 2;
             int timerY = ModConfig.INSTANCE.timerY != -1 ? ModConfig.INSTANCE.timerY
                     : screenHeight - 50;
-            drawShimmerText(guiGraphics, mc.font, timerText, timerX, timerY, colorA, colorB);
+            drawScaled(guiGraphics, timerX, timerY, timerScale,
+                    () -> drawShimmerText(guiGraphics, mc.font, timerText, timerX, timerY, colorA, colorB));
         }
+    }
+
+    private static void drawScaled(GuiGraphics g, int x, int y, float scale, Runnable draw) {
+        if (scale == 1.0f) {
+            draw.run();
+            return;
+        }
+        var pose = g.pose();
+        pose.pushMatrix();
+        pose.translate(x, y);
+        pose.scale(scale, scale);
+        pose.translate(-x, -y);
+        draw.run();
+        pose.popMatrix();
     }
 
     private static void drawShimmerText(GuiGraphics g, Font font, String text, int x, int y, int colorA, int colorB) {
