@@ -185,6 +185,11 @@ public class VaguriAssistClient implements ClientModInitializer {
 							.executes(ctx -> {
 								pendingScreen = () -> Minecraft.getInstance().setScreen(new ManualBanScreen());
 								return 1;
+							}))
+					.then(ClientCommandManager.literal("guisetting")
+							.executes(ctx -> {
+								pendingScreen = () -> Minecraft.getInstance().setScreen(new GuiEditScreen());
+								return 1;
 							})));
 		});
 

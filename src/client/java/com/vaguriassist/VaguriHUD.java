@@ -11,19 +11,26 @@ public class VaguriHUD {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;
 
-        String text = "VaguriAssist by Hanrasen";
-        int x = mc.getWindow().getGuiScaledWidth() - mc.font.width(text) - 5;
-        drawGoldShimmerText(guiGraphics, mc.font, text, x, 5);
+        int screenWidth = mc.getWindow().getGuiScaledWidth();
+        int screenHeight = mc.getWindow().getGuiScaledHeight();
 
-        // Таймер проверки: по центру над хотбаром, белый -> жёлтый -> красный
+        String text = "VaguriAssist by Hanrasen";
+        int x = ModConfig.INSTANCE.hudX != -1 ? ModConfig.INSTANCE.hudX
+                : screenWidth - mc.font.width(text) - 5;
+        int y = ModConfig.INSTANCE.hudY != -1 ? ModConfig.INSTANCE.hudY : 5;
+        drawGoldShimmerText(guiGraphics, mc.font, text, x, y);
+
+        // Таймер проверки: белый -> жёлтый -> красный
         String nick = VaguriAssistClient.getCurrentNick();
         if (!nick.isEmpty()) {
             long elapsed = VaguriAssistClient.getCheckElapsedMs();
             String timerText = "Проверка " + nick + " [" + formatTime(elapsed) + "]";
             int color = elapsed >= VaguriAssistClient.FIVE_MIN_MS ? 0xFFFF5555
                     : elapsed >= VaguriAssistClient.WARN_AT_MS ? 0xFFFFAA00 : 0xFFFFFFFF;
-            int timerX = (mc.getWindow().getGuiScaledWidth() - mc.font.width(timerText)) / 2;
-            int timerY = mc.getWindow().getGuiScaledHeight() - 50;
+            int timerX = ModConfig.INSTANCE.timerX != -1 ? ModConfig.INSTANCE.timerX
+                    : (screenWidth - mc.font.width(timerText)) / 2;
+            int timerY = ModConfig.INSTANCE.timerY != -1 ? ModConfig.INSTANCE.timerY
+                    : screenHeight - 50;
             guiGraphics.drawString(mc.font, timerText, timerX, timerY, color, true);
         }
     }
