@@ -34,15 +34,16 @@ public class VaguriHUD {
             y += 10;
         }
 
-        // Таймер проверки: белый -> жёлтый (подход к 5 мин) -> красный (после 5 мин)
+        // Таймер проверки: по центру над хотбаром, белый -> жёлтый -> красный
         String nick = VaguriAssistClient.getCurrentNick();
         if (!nick.isEmpty()) {
             long elapsed = VaguriAssistClient.getCheckElapsedMs();
             String timerText = "Проверка " + nick + " [" + formatTime(elapsed) + "]";
             int color = elapsed >= VaguriAssistClient.FIVE_MIN_MS ? 0xFFFF5555
                     : elapsed >= VaguriAssistClient.WARN_AT_MS ? 0xFFFFAA00 : 0xFFFFFFFF;
-            int timerX = mc.getWindow().getGuiScaledWidth() - mc.font.width(timerText) - 5;
-            guiGraphics.drawString(mc.font, timerText, timerX, y, color, true);
+            int timerX = (mc.getWindow().getGuiScaledWidth() - mc.font.width(timerText)) / 2;
+            int timerY = mc.getWindow().getGuiScaledHeight() - 50;
+            guiGraphics.drawString(mc.font, timerText, timerX, timerY, color, true);
         }
     }
 
