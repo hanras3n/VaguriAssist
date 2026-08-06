@@ -35,16 +35,18 @@ public class BanScreen extends Screen {
 				.bounds(left, 75, 122, 20).build());
 		this.addRenderableWidget(Button.builder(Component.literal("Время вышло"), b -> autoBan("Время вышло", 30))
 				.bounds(cx + 3, 75, 122, 20).build());
+		this.addRenderableWidget(Button.builder(Component.literal("Лив с проверки"), b -> autoBan("Лив с проверки", 30))
+				.bounds(left, 100, 122, 20).build());
 
-		this.reasonBox = new EditBox(this.font, left, 112, 250, 20, Component.literal("Своя причина"));
+		this.reasonBox = new EditBox(this.font, left, 137, 250, 20, Component.literal("Своя причина"));
 		this.reasonBox.setMaxLength(64);
 		this.reasonBox.setHint(Component.literal("например: Игнор"));
 
-		this.durationBox = new EditBox(this.font, left, 148, 122, 20, Component.literal("Срок (дней)"));
+		this.durationBox = new EditBox(this.font, left, 173, 122, 20, Component.literal("Срок (дней)"));
 		this.durationBox.setMaxLength(8);
 		this.durationBox.setValue("30");
 
-		this.paragraphBox = new EditBox(this.font, cx + 3, 148, 122, 20, Component.literal("Пункт"));
+		this.paragraphBox = new EditBox(this.font, cx + 3, 173, 122, 20, Component.literal("Пункт"));
 		this.paragraphBox.setMaxLength(16);
 		this.paragraphBox.setValue("2.4");
 
@@ -53,13 +55,13 @@ public class BanScreen extends Screen {
 		this.addRenderableWidget(this.paragraphBox);
 
 		this.ipCheckbox = Checkbox.builder(Component.literal("Бан по IP (/banip)"), this.font)
-				.pos(left, 174)
+				.pos(left, 199)
 				.selected(true)
 				.build();
 		this.addRenderableWidget(this.ipCheckbox);
 
 		this.addRenderableWidget(Button.builder(Component.literal("ВЫДАТЬ БАН"), b -> sendCustomBan())
-				.bounds(left, 200, 250, 20).build());
+				.bounds(left, 225, 250, 20).build());
 
 		this.addRenderableWidget(Button.builder(Component.literal("Отпустить"), b -> release())
 				.bounds(left, 246, 250, 20).build());
@@ -119,8 +121,8 @@ public class BanScreen extends Screen {
 				cx, 26, 0xA0A0A0);
 
 		guiGraphics.drawString(this.font, "Причина:", left, 38, 0xA0A0A0);
-		guiGraphics.drawString(this.font, "Своя причина", left, 102, 0xA0A0A0);
-		guiGraphics.drawString(this.font, "Срок (дней)", left, 138, 0xA0A0A0);
-		guiGraphics.drawString(this.font, "Пункт", cx + 3, 138, 0xA0A0A0);
+		guiGraphics.drawString(this.font, "Своя причина", left, 127, 0xA0A0A0);
+		guiGraphics.drawString(this.font, "Срок (дней)", left, 163, 0xA0A0A0);
+		guiGraphics.drawString(this.font, "Пункт", cx + 3, 163, 0xA0A0A0);
 	}
 }
