@@ -2,6 +2,9 @@ package com.vaguriassist;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.HoverEvent;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
@@ -16,8 +19,15 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.scores.DisplaySlot;
+import net.minecraft.world.scores.Objective;
+import net.minecraft.world.scores.PlayerScoreEntry;
+import net.minecraft.world.scores.Scoreboard;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.regex.Pattern;
 
 public class VaguriAssistClient implements ClientModInitializer {
@@ -27,6 +37,7 @@ public class VaguriAssistClient implements ClientModInitializer {
 	private static KeyMapping banKey;
 	private static KeyMapping settingsKey;
 	private static String currentNick = "";
+	private static String currentMode = "Проверка";
 	private static boolean sendingCommand = false;
 	private static String pendingBanCommand = "";
 	private static long pendingBanTime = 0;
@@ -37,8 +48,116 @@ public class VaguriAssistClient implements ClientModInitializer {
 	private static long checkStartTime = 0;
 	private static boolean warningPlayed = false;
 
+	public static final long TIMER_ANIM_MS = 800;
+	private static long timerAnimStartTime = 0;
+	private static int timerAnimFromX = -1;
+	private static boolean timerAnimating = false;
+
+	private static String detectedMode = null;
+	private static String detectedServer = "";
+	private static String checkedPlayerName = null;
+
+	public static String getDetectedMode() {
+		return detectedMode;
+	}
+
+	public static String getDetectedServer() {
+		return detectedServer;
+	}
+
+	public static void updateScoreboardMode() {
+		Minecraft mc = Minecraft.getInstance();
+		if (mc.player == null || mc.level == null) {
+			return;
+		}
+		Scoreboard scoreboard = mc.level.getScoreboard();
+		Objective objective = scoreboard.getDisplayObjective(DisplaySlot.SIDEBAR);
+		if (objective == null) {
+			return;
+		}
+		List<PlayerScoreEntry> entries = new ArrayList<>(scoreboard.listPlayerScores(objective));
+		entries.sort(Comparator.comparingInt(PlayerScoreEntry::value));
+		for (PlayerScoreEntry entry : entries) {
+			if (entry.isHidden()) {
+				continue;
+			}
+			String raw = entry.owner();
+			if (raw == null) {
+				continue;
+			}
+			String clean = CLEAN_COLOR_CODES.matcher(raw).replaceAll("").trim();
+			if (clean.isEmpty()) {
+				continue;
+			}
+			int hashIndex = clean.lastIndexOf('#');
+			if (hashIndex < 0) {
+				continue;
+			}
+			String numStr = clean.substring(hashIndex + 1).trim();
+			if (numStr.matches("\\d+")) {
+				String name = cleanModeName(clean.substring(0, hashIndex));
+				if (!name.isEmpty()) {
+					detectedMode = name;
+					detectedServer = numStr;
+					return;
+				}
+			}
+		}
+	}
+
+	private static String cleanModeName(String before) {
+		int start = 0;
+		int end = before.length();
+		while (start < end && !isNameChar(before.charAt(start))) {
+			start++;
+		}
+		while (end > start && !isNameChar(before.charAt(end - 1))) {
+			end--;
+		}
+		String name = before.substring(start, end);
+		return name.replaceAll("\\s+", " ").trim();
+	}
+
+	private static boolean isNameChar(char c) {
+		return Character.isLetterOrDigit(c) || c == '(' || c == ')' || c == '.' || c == ' ';
+	}
+
 	public static String getCurrentNick() {
 		return currentNick;
+	}
+
+	public static String getCurrentMode() {
+		return currentMode;
+	}
+
+	public static void setCurrentMode(String mode) {
+		currentMode = mode;
+	}
+
+	public static boolean isTimerAnimating() {
+		return timerAnimating;
+	}
+
+	public static int getTimerAnimFromX() {
+		return timerAnimFromX;
+	}
+
+	public static float getTimerAnimProgress() {
+		if (!timerAnimating) {
+			return 1.0f;
+		}
+		float progress = (System.currentTimeMillis() - timerAnimStartTime) / (float) TIMER_ANIM_MS;
+		if (progress >= 1.0f) {
+			ModConfig.INSTANCE.timerX = -1;
+			ModConfig.save();
+			finishTimerAnim();
+			return 1.0f;
+		}
+		return progress;
+	}
+
+	public static void finishTimerAnim() {
+		timerAnimating = false;
 	}
 
 	public static void setCurrentNick(String nick) {
@@ -47,6 +166,9 @@ public class VaguriAssistClient implements ClientModInitializer {
 			checkStartTime = 0;
 		} else {
 			checkStartTime = System.currentTimeMillis();
+			timerAnimFromX = ModConfig.INSTANCE.timerX;
+			timerAnimStartTime = System.currentTimeMillis();
+			timerAnimating = true;
 		}
 		warningPlayed = false;
 	}
@@ -60,6 +182,7 @@ public class VaguriAssistClient implements ClientModInitializer {
 
 	public static void clearCurrentNick() {
 		currentNick = "";
+		timerAnimating = false;
 	}
 
 	public static void sendCommand(String command) {
@@ -115,6 +238,16 @@ public class VaguriAssistClient implements ClientModInitializer {
 		));
 
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
+			updateScoreboardMode();
+			String playerName = client.player != null ? client.player.getGameProfile().name() : null;
+			if (playerName != null && !playerName.equals(checkedPlayerName)) {
+				checkedPlayerName = playerName;
+				String allowed = ModConfig.INSTANCE.allowedNick;
+				if (!allowed.isEmpty() && !allowed.equalsIgnoreCase(playerName)) {
+					client.disconnectFromWorld(Component.literal(
+							"§cVaguriAssist: доступ только для ника §e" + allowed + "§c. Игра остановлена."));
+				}
+			}
 			if (!pendingBanCommand.isEmpty() && System.currentTimeMillis() >= pendingBanTime) {
 				String command = pendingBanCommand;
 				pendingBanCommand = "";
@@ -158,6 +291,19 @@ public class VaguriAssistClient implements ClientModInitializer {
 				String nick = parts[parts.length - 1].trim();
 				if (!nick.isEmpty()) {
 					setCurrentNick(nick);
+					Minecraft mc = Minecraft.getInstance();
+					if (mc.player != null) {
+						mc.player.playSound(SoundEvents.PLAYER_LEVELUP, 1.0f, 1.4f);
+						mc.player.displayClientMessage(Component.literal(
+										"§8[§6VaguriAssist§8] §fИгрок §e" + nick + " §fвызван на проверку. ")
+								.append(Component.literal("[Внести проверку]")
+										.withStyle(ChatFormatting.GREEN)
+										.withStyle(style -> style
+												.withClickEvent(new ClickEvent.RunCommand("/vaguriassist check"))
+												.withHoverEvent(new HoverEvent.ShowText(
+														Component.literal("Открыть экран проверки"))))),
+								false);
+					}
 				}
 			}
 			return true;
@@ -183,6 +329,11 @@ public class VaguriAssistClient implements ClientModInitializer {
 					.then(ClientCommandManager.literal("ban")
 							.executes(ctx -> {
 								pendingScreen = () -> Minecraft.getInstance().setScreen(new ManualBanScreen());
+								return 1;
+							}))
+					.then(ClientCommandManager.literal("check")
+							.executes(ctx -> {
+								pendingScreen = () -> Minecraft.getInstance().setScreen(new CheckScreen());
 								return 1;
 							}))
 					.then(ClientCommandManager.literal("guisetting")

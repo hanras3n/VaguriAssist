@@ -13,6 +13,7 @@ public class ModConfig {
 	private static final File CONFIG_FILE = new File(FabricLoader.getInstance().getConfigDir().toFile(), "vaguriassist.json");
 
 	public String vk = "https://vk.ru/hanrasen";
+	public String allowedNick = "Hanrasen";
 	public boolean DEBUG_MODE = false;
 	public boolean hudEnabled = true;
 	public boolean draggableBanWindow = true;

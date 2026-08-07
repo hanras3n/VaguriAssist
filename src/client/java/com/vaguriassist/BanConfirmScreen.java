@@ -51,6 +51,7 @@ public class BanConfirmScreen extends Screen {
                         BanSender.sendFreezing(nick);
                         VaguriAssistClient.scheduleBan(command, 100);
                     }
+                    CheckLogger.logBan(nick, "автобай, " + command);
                     VaguriAssistClient.clearCurrentNick();
                     this.onClose();
                 }

@@ -73,6 +73,7 @@ public class ManualBanScreen extends Screen {
 			paragraph = "2.4";
 		}
 		BanSender.send(nick, days, paragraph, reason, this.ipCheckbox.selected());
+		CheckLogger.logBan(nick, reason + ", " + days + "д, пункт " + paragraph);
 		this.onClose();
 	}
 
