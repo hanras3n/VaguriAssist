@@ -28,11 +28,13 @@ import org.lwjgl.glfw.GLFW;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class VaguriAssistClient implements ClientModInitializer {
 
 	private static final Pattern CLEAN_COLOR_CODES = Pattern.compile("§[0-9a-fk-orA-FK-OR]");
+	private static final Pattern MODE_NUMBER_PATTERN = Pattern.compile("#\\s*(\\d+)");
 
 	private static KeyMapping banKey;
 	private static KeyMapping settingsKey;
@@ -56,6 +58,8 @@ public class VaguriAssistClient implements ClientModInitializer {
 	private static String detectedMode = null;
 	private static String detectedServer = "";
 	private static String checkedPlayerName = null;
+	private static String tabHeader = "";
+	private static String tabFooter = "";
 
 	public static String getDetectedMode() {
 		return detectedMode;
@@ -65,44 +69,96 @@ public class VaguriAssistClient implements ClientModInitializer {
 		return detectedServer;
 	}
 
+	public static void onTabListUpdate(net.minecraft.network.chat.Component header, net.minecraft.network.chat.Component footer) {
+		tabHeader = header != null ? header.getString() : "";
+		tabFooter = footer != null ? footer.getString() : "";
+	}
+
 	public static void updateScoreboardMode() {
+		if (parseTabText(tabHeader)) {
+			return;
+		}
+		if (parseTabText(tabFooter)) {
+			return;
+		}
 		Minecraft mc = Minecraft.getInstance();
 		if (mc.player == null || mc.level == null) {
 			return;
 		}
 		Scoreboard scoreboard = mc.level.getScoreboard();
-		Objective objective = scoreboard.getDisplayObjective(DisplaySlot.SIDEBAR);
-		if (objective == null) {
-			return;
+		for (DisplaySlot slot : DisplaySlot.values()) {
+			Objective objective = scoreboard.getDisplayObjective(slot);
+			if (objective != null && scanObjective(objective)) {
+				return;
+			}
 		}
-		List<PlayerScoreEntry> entries = new ArrayList<>(scoreboard.listPlayerScores(objective));
+		for (Objective objective : scoreboard.getObjectives()) {
+			if (scanObjective(objective)) {
+				return;
+			}
+		}
+	}
+
+	private static boolean parseTabText(String text) {
+		if (text == null || text.isEmpty()) {
+			return false;
+		}
+		for (String line : text.split("\n")) {
+			if (parseModeLine(line)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static boolean scanObjective(Objective objective) {
+		if (ModConfig.INSTANCE.DEBUG_MODE) {
+			System.out.println("[VaguriAssist] SB title: '" + objective.getDisplayName().getString() + "'");
+			for (PlayerScoreEntry entry : objective.getScoreboard().listPlayerScores(objective)) {
+				System.out.println("[VaguriAssist] SB line: '" + entry.owner() + "' = " + entry.value());
+			}
+		}
+		if (parseModeLine(objective.getDisplayName().getString())) {
+			return true;
+		}
+		List<PlayerScoreEntry> entries = new ArrayList<>(objective.getScoreboard().listPlayerScores(objective));
 		entries.sort(Comparator.comparingInt(PlayerScoreEntry::value));
 		for (PlayerScoreEntry entry : entries) {
 			if (entry.isHidden()) {
 				continue;
 			}
-			String raw = entry.owner();
-			if (raw == null) {
-				continue;
-			}
-			String clean = CLEAN_COLOR_CODES.matcher(raw).replaceAll("").trim();
-			if (clean.isEmpty()) {
-				continue;
-			}
-			int hashIndex = clean.lastIndexOf('#');
-			if (hashIndex < 0) {
-				continue;
-			}
-			String numStr = clean.substring(hashIndex + 1).trim();
-			if (numStr.matches("\\d+")) {
-				String name = cleanModeName(clean.substring(0, hashIndex));
-				if (!name.isEmpty()) {
-					detectedMode = name;
-					detectedServer = numStr;
-					return;
-				}
+			if (parseModeLine(entry.owner())) {
+				return true;
 			}
 		}
+		return false;
+	}
+
+	private static boolean parseModeLine(String raw) {
+		if (raw == null) {
+			return false;
+		}
+		String clean = CLEAN_COLOR_CODES.matcher(raw).replaceAll("").trim();
+		if (clean.isEmpty()) {
+			return false;
+		}
+		Matcher matcher = MODE_NUMBER_PATTERN.matcher(clean);
+		int hashIndex = -1;
+		String numStr = null;
+		while (matcher.find()) {
+			hashIndex = matcher.start();
+			numStr = matcher.group(1);
+		}
+		if (hashIndex < 0) {
+			return false;
+		}
+		String name = cleanModeName(clean.substring(0, hashIndex));
+		if (name.isEmpty()) {
+			return false;
+		}
+		detectedMode = name;
+		detectedServer = numStr;
+		return true;
 	}
 
 	private static String cleanModeName(String before) {
@@ -223,6 +279,23 @@ public class VaguriAssistClient implements ClientModInitializer {
 		pendingBanTime = System.currentTimeMillis() + delayMs;
 	}
 
+	public static void playCheckCall(String nick) {
+		Minecraft mc = Minecraft.getInstance();
+		if (mc.player == null) {
+			return;
+		}
+		mc.player.playSound(SoundEvents.PLAYER_LEVELUP, 1.0f, 1.4f);
+		mc.player.displayClientMessage(Component.literal(
+						"§8[§6VaguriAssist§8] §fИгрок §e" + nick + " §fвызван на проверку. ")
+				.append(Component.literal("[Внести проверку]")
+						.withStyle(ChatFormatting.GREEN)
+						.withStyle(style -> style
+								.withClickEvent(new ClickEvent.RunCommand("/vaguriassist check"))
+								.withHoverEvent(new HoverEvent.ShowText(
+										Component.literal("Открыть экран проверки"))))),
+				false);
+	}
+
 	@Override
 	public void onInitializeClient() {
 		ModConfig.load();
@@ -291,19 +364,7 @@ public class VaguriAssistClient implements ClientModInitializer {
 				String nick = parts[parts.length - 1].trim();
 				if (!nick.isEmpty()) {
 					setCurrentNick(nick);
-					Minecraft mc = Minecraft.getInstance();
-					if (mc.player != null) {
-						mc.player.playSound(SoundEvents.PLAYER_LEVELUP, 1.0f, 1.4f);
-						mc.player.displayClientMessage(Component.literal(
-										"§8[§6VaguriAssist§8] §fИгрок §e" + nick + " §fвызван на проверку. ")
-								.append(Component.literal("[Внести проверку]")
-										.withStyle(ChatFormatting.GREEN)
-										.withStyle(style -> style
-												.withClickEvent(new ClickEvent.RunCommand("/vaguriassist check"))
-												.withHoverEvent(new HoverEvent.ShowText(
-														Component.literal("Открыть экран проверки"))))),
-								false);
-					}
+					playCheckCall(nick);
 				}
 			}
 			return true;

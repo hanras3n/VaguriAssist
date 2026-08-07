@@ -19,6 +19,8 @@ public class ModConfig {
 	public boolean draggableBanWindow = true;
 	public int banWindowX = -1;
 	public int banWindowY = -1;
+	public int checkWindowX = -1;
+	public int checkWindowY = -1;
 	public int hudX = -1;
 	public int hudY = -1;
 	public int timerX = -1;

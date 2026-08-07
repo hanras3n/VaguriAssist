@@ -29,15 +29,23 @@ public final class CheckLogger {
     }
 
     public static void logBan(String nick, String reason) {
-        log("Проверка: " + nick + serverSuffix() + " | Результат: забанили (" + reason + ")");
+        log("Проверка: " + nick + modeInfo() + " | Результат: забанили (" + reason + ")");
     }
 
     public static void logRelease(String nick) {
-        log("Проверка: " + nick + serverSuffix() + " | Результат: отпустили");
+        log("Проверка: " + nick + modeInfo() + " | Результат: отпустили");
     }
 
-    private static String serverSuffix() {
+    private static String modeInfo() {
+        String mode = VaguriAssistClient.getDetectedMode();
         String server = VaguriAssistClient.getDetectedServer();
-        return server.isEmpty() ? "" : " | Анка: #" + server;
+        String result = "";
+        if (mode != null && !mode.isEmpty()) {
+            result += " | Режим: " + mode;
+        }
+        if (!server.isEmpty()) {
+            result += " | Анка: #" + server;
+        }
+        return result;
     }
 }
