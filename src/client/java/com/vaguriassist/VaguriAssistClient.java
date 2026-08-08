@@ -274,6 +274,18 @@ public class VaguriAssistClient implements ClientModInitializer {
 		}
 	}
 
+	public static void submitCheck() {
+		Minecraft mc = Minecraft.getInstance();
+		if (mc.player == null) {
+			return;
+		}
+		String nick = getCurrentNick();
+		String msg = "§8[§6VaguriAssist§8] §aПроверка внесена"
+				+ (nick.isEmpty() ? "" : ": §e" + nick)
+				+ " §f(режим: §e" + currentMode + "§f)";
+		mc.player.displayClientMessage(Component.literal(msg), false);
+	}
+
 	public static void scheduleBan(String command, long delayMs) {
 		pendingBanCommand = command;
 		pendingBanTime = System.currentTimeMillis() + delayMs;
@@ -290,9 +302,9 @@ public class VaguriAssistClient implements ClientModInitializer {
 				.append(Component.literal("[Внести проверку]")
 						.withStyle(ChatFormatting.GREEN)
 						.withStyle(style -> style
-								.withClickEvent(new ClickEvent.RunCommand("/vaguriassist check"))
+								.withClickEvent(new ClickEvent.RunCommand("/vaguriassist applycheck"))
 								.withHoverEvent(new HoverEvent.ShowText(
-										Component.literal("Открыть экран проверки"))))),
+										Component.literal("Внести проверку сразу, без меню"))))),
 				false);
 	}
 
@@ -395,6 +407,11 @@ public class VaguriAssistClient implements ClientModInitializer {
 					.then(ClientCommandManager.literal("check")
 							.executes(ctx -> {
 								pendingScreen = () -> Minecraft.getInstance().setScreen(new CheckScreen());
+								return 1;
+							}))
+					.then(ClientCommandManager.literal("applycheck")
+							.executes(ctx -> {
+								submitCheck();
 								return 1;
 							}))
 					.then(ClientCommandManager.literal("guisetting")
