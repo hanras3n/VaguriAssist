@@ -43,9 +43,18 @@ public class SettingsScreen extends Screen {
         ).bounds(x, y + 50, 200, 20).build());
 
         this.addRenderableWidget(Button.builder(
+                Component.literal("Auto Unfreeze: " + (ModConfig.INSTANCE.autoUnfreeze ? "ON" : "OFF")),
+                (b) -> {
+                    ModConfig.INSTANCE.autoUnfreeze = !ModConfig.INSTANCE.autoUnfreeze;
+                    b.setMessage(Component.literal("Auto Unfreeze: " + (ModConfig.INSTANCE.autoUnfreeze ? "ON" : "OFF")));
+                    ModConfig.save();
+                }
+        ).bounds(x, y + 75, 200, 20).build());
+
+        this.addRenderableWidget(Button.builder(
                 Component.literal("Done"),
                 (b) -> this.onClose()
-        ).bounds(x, y + 95, 200, 20).build());
+        ).bounds(x, y + 120, 200, 20).build());
     }
 
     @Override

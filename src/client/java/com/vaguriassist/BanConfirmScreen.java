@@ -48,7 +48,9 @@ public class BanConfirmScreen extends Screen {
                     if (nick.isEmpty()) {
                         VaguriAssistClient.sendCommand(command);
                     } else {
-                        BanSender.sendFreezing(nick);
+                        if (ModConfig.INSTANCE.autoUnfreeze) {
+                            BanSender.sendFreezing(nick);
+                        }
                         VaguriAssistClient.scheduleBan(command, 100);
                     }
                     CheckLogger.logBan(nick, "автобай, " + command);

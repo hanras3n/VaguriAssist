@@ -10,7 +10,9 @@ public final class BanSender {
 	}
 
 	public static void sendWithUnfreeze(String nick, int durationDays, String paragraph, String reason, boolean byIp) {
-		sendFreezing(nick);
+		if (ModConfig.INSTANCE.autoUnfreeze) {
+			sendFreezing(nick);
+		}
 		VaguriAssistClient.scheduleBan(buildCommand(nick, durationDays, paragraph, reason, byIp), 100);
 	}
 

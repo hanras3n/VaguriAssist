@@ -16,6 +16,7 @@ public class ModConfig {
 	public String allowedNick = "Hanrasen";
 	public boolean DEBUG_MODE = false;
 	public boolean hudEnabled = true;
+	public boolean autoUnfreeze = false;
 	public boolean draggableBanWindow = true;
 	public int banWindowX = -1;
 	public int banWindowY = -1;

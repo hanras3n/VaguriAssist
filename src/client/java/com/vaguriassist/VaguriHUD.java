@@ -11,6 +11,8 @@ public class VaguriHUD {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;
 
+        float dim = mc.screen != null ? 0.45f : 1.0f;
+
         int screenWidth = mc.getWindow().getGuiScaledWidth();
         int screenHeight = mc.getWindow().getGuiScaledHeight();
 
@@ -20,7 +22,7 @@ public class VaguriHUD {
                 : screenWidth - (int) (mc.font.width(text) * hudScale) - 5;
         int y = ModConfig.INSTANCE.hudY != -1 ? ModConfig.INSTANCE.hudY : 5;
         drawScaled(guiGraphics, x, y, hudScale,
-                () -> drawGoldShimmerText(guiGraphics, mc.font, text, x, y));
+                () -> drawGoldShimmerText(guiGraphics, mc.font, text, x, y, dim));
 
 		// Таймер проверки: переливается слева направо, меняет цвета по состоянию
 		String nick = VaguriAssistClient.getCurrentNick();
@@ -56,7 +58,7 @@ public class VaguriHUD {
 			int timerY = ModConfig.INSTANCE.timerY != -1 ? ModConfig.INSTANCE.timerY
 					: screenHeight - 50;
 			drawScaled(guiGraphics, timerX, timerY, timerScale,
-					() -> drawShimmerText(guiGraphics, mc.font, timerText, timerX, timerY, colorA, colorB));
+					() -> drawShimmerText(guiGraphics, mc.font, timerText, timerX, timerY, colorA, colorB, dim));
 		}
 
 		// Правая панель: ник на проверке и режим
@@ -73,11 +75,11 @@ public class VaguriHUD {
 			int lineHeight = mc.font.lineHeight + 2;
 			int panelH = 4 + lineHeight * lines;
 			int panelY = 5 + (int) (9 * ModConfig.INSTANCE.hudScale) + 2;
-			guiGraphics.fill(panelX, panelY, panelX + panelW, panelY + panelH, 0x88000000);
-			guiGraphics.drawString(mc.font, nickLine, panelX + 4, panelY + 2, 0xFFFFFFFF, true);
-			guiGraphics.drawString(mc.font, modeLine, panelX + 4, panelY + 2 + lineHeight, 0xFF55FF55, true);
+			guiGraphics.fill(panelX, panelY, panelX + panelW, panelY + panelH, withAlpha(0x88000000, dim));
+			guiGraphics.drawString(mc.font, nickLine, panelX + 4, panelY + 2, withAlpha(0xFFFFFFFF, dim), true);
+			guiGraphics.drawString(mc.font, modeLine, panelX + 4, panelY + 2 + lineHeight, withAlpha(0xFF55FF55, dim), true);
 			if (serverLine != null) {
-				guiGraphics.drawString(mc.font, serverLine, panelX + 4, panelY + 2 + lineHeight * 2, 0xFF55FF55, true);
+				guiGraphics.drawString(mc.font, serverLine, panelX + 4, panelY + 2 + lineHeight * 2, withAlpha(0xFF55FF55, dim), true);
 			}
 		}
 	}
@@ -101,7 +103,7 @@ public class VaguriHUD {
         pose.popMatrix();
     }
 
-    private static void drawShimmerText(GuiGraphics g, Font font, String text, int x, int y, int colorA, int colorB) {
+    private static void drawShimmerText(GuiGraphics g, Font font, String text, int x, int y, int colorA, int colorB, float alphaMul) {
         if (text.isEmpty()) return;
         int offset = 0;
         long time = System.currentTimeMillis();
@@ -125,7 +127,8 @@ public class VaguriHUD {
             int r = (int) (r1 + (r2 - r1) * pulse);
             int gr = (int) (g1 + (g2 - g1) * pulse);
             int b = (int) (b1 + (b2 - b1) * pulse);
-            int color = (0xFF << 24) | (r << 16) | (gr << 8) | b;
+            int alpha = (int) (0xFF * alphaMul);
+            int color = (alpha << 24) | (r << 16) | (gr << 8) | b;
 
             g.drawString(font, String.valueOf(c), x + offset, y, color, true);
             offset += font.width(String.valueOf(c));
@@ -139,7 +142,7 @@ public class VaguriHUD {
         return String.format("%02d:%02d", minutes, seconds);
     }
 
-    private static void drawGoldShimmerText(GuiGraphics g, Font font, String text, int x, int y) {
+    private static void drawGoldShimmerText(GuiGraphics g, Font font, String text, int x, int y, float alphaMul) {
         if (text.isEmpty()) return;
         int offset = 0;
         long time = System.currentTimeMillis();
@@ -156,10 +159,16 @@ public class VaguriHUD {
             int r = (int) (204 + (255 - 204) * pulse);
             int gr = (int) (153 + (255 - 153) * pulse);
             int b = (int) (0 + (153 - 0) * pulse);
-            int color = (0xFF << 24) | (r << 16) | (gr << 8) | b;
+            int alpha = (int) (0xFF * alphaMul);
+            int color = (alpha << 24) | (r << 16) | (gr << 8) | b;
 
             g.drawString(font, String.valueOf(c), x + offset, y, color, true);
             offset += font.width(String.valueOf(c));
         }
+    }
+
+    private static int withAlpha(int color, float alphaMul) {
+        int alpha = (int) ((color >> 24 & 0xFF) * alphaMul);
+        return (alpha << 24) | (color & 0x00FFFFFF);
     }
 }
