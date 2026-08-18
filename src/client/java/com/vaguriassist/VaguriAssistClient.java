@@ -81,73 +81,79 @@ public class VaguriAssistClient implements ClientModInitializer {
 	}
 
 	public static void updateScoreboardMode() {
-		scanTextForMode(tabHeader);
-		scanTextForMode(tabFooter);
-		Minecraft mc = Minecraft.getInstance();
-		if (mc.player == null || mc.level == null) {
-			return;
-		}
-		Scoreboard scoreboard = mc.level.getScoreboard();
-		for (DisplaySlot slot : DisplaySlot.values()) {
-			Objective objective = scoreboard.getDisplayObjective(slot);
-			if (objective != null) {
-				scanTextForMode(objective.getDisplayName().getString());
-				for (PlayerScoreEntry entry : objective.getScoreboard().listPlayerScores(objective)) {
-					if (!entry.isHidden()) {
-						scanTextForMode(entry.owner());
-					}
-				}
-			}
-		}
-		for (Objective objective : scoreboard.getObjectives()) {
-			scanTextForMode(objective.getDisplayName().getString());
-			for (PlayerScoreEntry entry : objective.getScoreboard().listPlayerScores(objective)) {
-				if (!entry.isHidden()) {
-					scanTextForMode(entry.owner());
-				}
-			}
+		detectedMode = null;
+		detectedServer = "";
+		scanTabForMode(tabHeader);
+		scanTabForMode(tabFooter);
+		scanTabForServer(tabHeader);
+		if (detectedServer.isEmpty()) {
+			scanTabForFirstNumber(tabHeader);
 		}
 	}
 
-	private static void scanTextForMode(String text) {
+	private static void scanTabForMode(String text) {
 		if (text == null || text.isEmpty()) {
 			return;
 		}
 		for (String line : text.split("\n")) {
-			scanLine(line);
+			if (line == null || line.isEmpty()) {
+				continue;
+			}
+			String clean = CLEAN_COLOR_CODES.matcher(line).replaceAll("").toLowerCase();
+			if (clean.contains("lite120") || clean.contains("lite 1.20") || clean.contains("1.20")) {
+				detectedMode = "lite120";
+			} else if (clean.contains("lite")) {
+				detectedMode = "lite";
+			} else if (clean.contains("classic")) {
+				detectedMode = "classic";
+			}
 		}
 	}
 
-	private static void scanLine(String raw) {
-		if (raw == null || raw.isEmpty()) {
+	private static void scanTabForServer(String text) {
+		if (text == null || text.isEmpty()) {
 			return;
 		}
-		String clean = CLEAN_COLOR_CODES.matcher(raw).replaceAll("").toLowerCase();
-		String mode = null;
-		if (clean.contains("lite120") || clean.contains("lite 1.20") || clean.contains("1.20")) {
-			mode = "lite120";
-		} else if (clean.contains("lite")) {
-			mode = "lite";
-		} else if (clean.contains("classic")) {
-			mode = "classic";
+		for (String line : text.split("\n")) {
+			if (line == null || line.isEmpty()) {
+				continue;
+			}
+			String clean = CLEAN_COLOR_CODES.matcher(line).replaceAll("").toLowerCase();
+			boolean hasMode = clean.contains("lite") || clean.contains("classic") || clean.contains("1.20");
+			if (!hasMode) {
+				continue;
+			}
+			String num = lastNumber(line);
+			if (num != null) {
+				detectedServer = num;
+				return;
+			}
 		}
+	}
 
-		String numStr = null;
+	private static void scanTabForFirstNumber(String text) {
+		if (text == null || text.isEmpty()) {
+			return;
+		}
+		for (String line : text.split("\n")) {
+			String num = lastNumber(line);
+			if (num != null) {
+				detectedServer = num;
+				return;
+			}
+		}
+	}
+
+	private static String lastNumber(String raw) {
+		if (raw == null) {
+			return null;
+		}
 		Matcher matcher = MODE_NUMBER_PATTERN.matcher(raw);
+		String num = null;
 		while (matcher.find()) {
-			numStr = matcher.group(1);
+			num = matcher.group(1);
 		}
-
-		if (mode != null) {
-			if (detectedMode == null) {
-				detectedMode = mode;
-			}
-			if (numStr != null) {
-				detectedServer = numStr;
-			}
-		} else if (detectedServer.isEmpty() && numStr != null) {
-			detectedServer = numStr;
-		}
+		return num;
 	}
 
 	private static String cleanModeName(String before) {
