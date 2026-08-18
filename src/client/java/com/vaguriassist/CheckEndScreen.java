@@ -4,24 +4,23 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Checkbox;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
-public class CheckScreen extends Screen {
+public class CheckEndScreen extends Screen {
 
-    private static final String[][] REASONS = {
-            {"report", "Репорт"},
-            {"checkout", "Проверка"},
+    private static final String[][] RESULTS = {
+            {"ban", "Забанен"},
+            {"clean", "Чист"},
             {"autobuy", "Автобай"},
-            {"autosell", "Автоселл"},
-            {"customka", "Кастомка"},
-            {"candidate", "Кандидат"}
+            {"autosell", "Автоселл"}
     };
 
     private static final int WIN_W = 280;
-    private static final int WIN_H = 230;
+    private static final int WIN_H = 250;
 
     private int winX;
     private int winY;
@@ -29,18 +28,21 @@ public class CheckScreen extends Screen {
     private int dragDX;
     private int dragDY;
 
-    private final String initialNick;
-    private EditBox nickBox;
+    private final String nick;
+    private final boolean wasBanned;
+    private final String defaultBanReason;
 
-    private String selectedReason = null;
+    private EditBox banReasonBox;
+    private Checkbox stashCheckbox;
 
-    public CheckScreen() {
-        this(VaguriAssistClient.getCurrentNick());
-    }
+    private String selectedResult;
 
-    public CheckScreen(String nick) {
-        super(Component.literal("VaguriAssist — Внести проверку"));
-        this.initialNick = nick == null ? "" : nick;
+    public CheckEndScreen(String nick, boolean wasBanned, String defaultBanReason) {
+        super(Component.literal("VaguriAssist — Завершение проверки"));
+        this.nick = nick == null ? "" : nick;
+        this.wasBanned = wasBanned;
+        this.defaultBanReason = defaultBanReason == null ? "2.4" : defaultBanReason;
+        this.selectedResult = wasBanned ? "ban" : "clean";
     }
 
     @Override
@@ -51,38 +53,38 @@ public class CheckScreen extends Screen {
         this.winY = ModConfig.INSTANCE.checkWindowY != -1 ? ModConfig.INSTANCE.checkWindowY : defY;
         clampWindow();
 
-        int bx = winX + 10;
-        int bw = WIN_W - 20;
-
-        this.nickBox = new EditBox(this.font, bx, winY + 30, bw, 20, Component.literal("Ник игрока"));
-        this.nickBox.setMaxLength(32);
-        this.nickBox.setHint(Component.literal("Ник игрока"));
-        this.nickBox.setValue(initialNick);
-        this.addRenderableWidget(this.nickBox);
-
         int btnW = 128;
         int btnH = 22;
-        int startY = winY + 78;
-        for (int i = 0; i < REASONS.length; i++) {
-            final String reason = REASONS[i][0];
-            final String label = REASONS[i][1];
+        int startY = winY + 70;
+        for (int i = 0; i < RESULTS.length; i++) {
+            final String result = RESULTS[i][0];
+            final String label = RESULTS[i][1];
             int col = i % 2;
             int row = i / 2;
-            int bX = winX + 10 + col * (btnW + 6);
-            int bY = startY + row * (btnH + 4);
             this.addRenderableWidget(Button.builder(
                     Component.literal(label),
                     b -> {
-                        selectedReason = reason;
-                        refreshReasonLabels();
+                        selectedResult = result;
+                        refreshResultLabels();
                     }
-            ).bounds(bX, bY, btnW, btnH).build());
+            ).bounds(winX + 10 + col * (btnW + 6), startY + row * (btnH + 4), btnW, btnH).build());
         }
 
+        this.stashCheckbox = Checkbox.builder(Component.literal("Снос стеша"), this.font)
+                .pos(winX + 10, winY + 158)
+                .selected(true)
+                .build();
+        this.addRenderableWidget(this.stashCheckbox);
+
+        this.banReasonBox = new EditBox(this.font, winX + 10, winY + 184, WIN_W - 20, 20, Component.literal("Пункт бана"));
+        this.banReasonBox.setMaxLength(16);
+        this.banReasonBox.setValue(defaultBanReason);
+        this.addRenderableWidget(this.banReasonBox);
+
         this.addRenderableWidget(Button.builder(
-                Component.literal("Внести проверку"),
+                Component.literal("Завершить проверку"),
                 b -> submit()
-        ).bounds(winX + 10, winY + WIN_H - 28, bw, 22).build());
+        ).bounds(winX + 10, winY + WIN_H - 28, WIN_W - 20, 22).build());
 
         this.addRenderableWidget(Button.builder(
                 Component.literal("Закрыть"),
@@ -90,93 +92,64 @@ public class CheckScreen extends Screen {
         ).bounds(winX + WIN_W - 93, winY + 8, 83, 20).build());
     }
 
-    private void refreshReasonLabels() {
+    private void refreshResultLabels() {
         var widgets = this.children().stream()
                 .filter(w -> w instanceof Button)
                 .map(w -> (Button) w)
                 .toList();
-        int reasonBtnStart = widgets.size() - REASONS.length - 2;
-        for (int i = 0; i < REASONS.length; i++) {
-            int idx = reasonBtnStart + i;
+        int resultBtnStart = widgets.size() - RESULTS.length - 2;
+        for (int i = 0; i < RESULTS.length; i++) {
+            int idx = resultBtnStart + i;
             if (idx >= 0 && idx < widgets.size()) {
                 Button btn = widgets.get(idx);
-                String label = REASONS[i][1];
+                String label = RESULTS[i][1];
                 btn.setMessage(Component.literal(
-                        selectedReason != null && selectedReason.equals(REASONS[i][0]) ? "► " + label : label));
+                        selectedResult != null && selectedResult.equals(RESULTS[i][0]) ? "► " + label : label));
             }
         }
     }
 
+    private boolean needsBanReason() {
+        return "ban".equals(selectedResult) || "autobuy".equals(selectedResult) || "autosell".equals(selectedResult);
+    }
+
     private void submit() {
-        String nick = this.nickBox.getValue().trim();
-        if (nick.isEmpty()) {
-            this.nickBox.setFocused(true);
-            return;
-        }
-        String reason = selectedReason != null ? selectedReason : "checkout";
-        final String reasonLabel;
-        {
-            String tmp = reason;
-            for (String[] r : REASONS) {
-                if (r[0].equals(reason)) {
-                    tmp = r[1];
-                    break;
-                }
-            }
-            reasonLabel = tmp;
-        }
-        String mode = VaguriAssistClient.getDetectedMode();
-        if (mode == null) {
-            Minecraft mc = Minecraft.getInstance();
-            if (mc.player != null) {
-                mc.player.displayClientMessage(Component.literal(
-                        "§8[§6VaguriAssist§8] §cРежим не распознан — внеси вручную: §e/vaguriassist addcheck"), false);
-            }
-            Minecraft.getInstance().setScreen(new ManualCheckScreen(nick));
-            this.onClose();
-            return;
-        }
-        String server = VaguriAssistClient.getDetectedServer();
-        String apiMode = mapMode(mode);
-        int anarchyNumber;
-        try {
-            anarchyNumber = Integer.parseInt(server);
-        } catch (Exception e) {
-            anarchyNumber = 0;
+        String result = selectedResult != null ? selectedResult : (wasBanned ? "ban" : "clean");
+        boolean destroyStash = this.stashCheckbox.selected();
+        String banReason = needsBanReason() ? this.banReasonBox.getValue().trim() : null;
+        if (banReason != null && banReason.isEmpty()) {
+            banReason = "2.4";
         }
 
         boolean online = "online".equals(ModConfig.INSTANCE.checkLogMode);
+        final String banReasonFinal = banReason;
         if (online) {
-            JournalAPI.getInstance().startCheckout(nick, reason, apiMode, anarchyNumber)
+            JournalAPI.getInstance().endCheckout(result, destroyStash, banReasonFinal)
                     .thenAccept(success -> {
                         Minecraft mc = Minecraft.getInstance();
                         if (mc.player != null) {
                             if (success) {
                                 mc.player.displayClientMessage(Component.literal(
-                                        "§8[§6VaguriAssist§8] §aВнесено в журнал: §e" + nick), false);
+                                        "§8[§6VaguriAssist§8] §aПроверка завершена в журнале: §e" + nick
+                                                + " §f(§e" + result + "§f)"), false);
                             } else {
                                 mc.player.displayClientMessage(Component.literal(
-                                        "§8[§6VaguriAssist§8] §cНе внесено — причина: §e" + reasonLabel), false);
+                                        "§8[§6VaguriAssist§8] §cНе удалось завершить проверку — "
+                                                + (needsBanReason() ? "причина: " + (banReasonFinal == null ? "-" : banReasonFinal) : "ошибка API")), false);
                             }
                         }
                     });
         } else {
-            CheckLogger.logCheck(nick, reasonLabel, apiMode, anarchyNumber, false);
+            CheckLogger.logEnd(nick, result, destroyStash, banReasonFinal);
             Minecraft mc = Minecraft.getInstance();
             if (mc.player != null) {
                 mc.player.displayClientMessage(Component.literal(
-                        "§8[§6VaguriAssist§8] §aПроверка внесена (оффлайн): §e" + nick), false);
+                        "§8[§6VaguriAssist§8] §aПроверка завершена (оффлайн): §e" + nick
+                                + " §f(§e" + result + "§f)"), false);
             }
         }
+        VaguriAssistClient.clearCurrentNick();
         this.onClose();
-    }
-
-    private String mapMode(String detected) {
-        if (detected == null) return "classic";
-        String lower = detected.toLowerCase();
-        if (lower.contains("lite120")) return "lite120";
-        if (lower.contains("lite")) return "lite";
-        return "classic";
     }
 
     @Override
@@ -188,22 +161,16 @@ public class CheckScreen extends Screen {
         g.fill(winX, winY, winX + 1, winY + WIN_H, 0xFF888888);
         g.fill(winX + WIN_W - 1, winY, winX + WIN_W, winY + WIN_H, 0xFF888888);
 
-        g.fill(winX + 1, winY + 1, winX + WIN_W - 1, winY + 14, 0xFFFF5555);
-        g.drawCenteredString(this.font, "Внести проверку", winX + WIN_W / 2, winY + 4, 0xFFFFFFFF);
+        g.fill(winX + 1, winY + 1, winX + WIN_W - 1, winY + 14, 0xFFFFAA00);
+        g.drawCenteredString(this.font, "Завершение проверки", winX + WIN_W / 2, winY + 4, 0xFFFFFFFF);
 
-        g.drawString(this.font, "Ник игрока", winX + 12, winY + 18, 0xA0A0A0);
-        g.drawCenteredString(this.font, "Причина:", winX + WIN_W / 2, winY + 66, 0x55FF55);
-
-        String mode = VaguriAssistClient.getDetectedMode();
-        String server = VaguriAssistClient.getDetectedServer();
-        String detectedStr = mode != null ? mode : VaguriAssistClient.getCurrentMode();
-        String serverStr = server.isEmpty() ? "" : " #" + server;
-        g.drawCenteredString(this.font,
-                "Режим: " + detectedStr + serverStr + " (авто)",
-                winX + WIN_W / 2, winY + WIN_H - 50, 0x55FFFF);
+        String nickDisplay = nick.isEmpty() ? "Нет игрока" : nick;
+        g.drawCenteredString(this.font, Component.literal("Игрок: ").append(
+                Component.literal(nickDisplay).withStyle(ChatFormatting.YELLOW)), winX + WIN_W / 2, winY + 24, 0xA0A0A0);
+        g.drawCenteredString(this.font, "Результат проверки:", winX + WIN_W / 2, winY + 58, 0x55FF55);
 
         String logMode = "online".equals(ModConfig.INSTANCE.checkLogMode) ? "Онлайн (журнал)" : "Оффлайн (txt)";
-        g.drawCenteredString(this.font, "Режим вноса: " + logMode, winX + WIN_W / 2, winY + WIN_H - 38, 0xA0A0A0);
+        g.drawCenteredString(this.font, "Режим вноса: " + logMode, winX + WIN_W / 2, winY + WIN_H - 50, 0xA0A0A0);
 
         super.render(g, mX, mY, p);
     }
@@ -253,23 +220,21 @@ public class CheckScreen extends Screen {
     }
 
     private void repositionWidgets() {
-        int bx = winX + 10;
-        int bw = WIN_W - 20;
-        this.nickBox.setPosition(bx, winY + 30);
-
         var widgets = this.children().stream().filter(w -> w instanceof Button).map(w -> (Button) w).toList();
         int btnW = 128;
         int btnH = 22;
-        int startY = winY + 78;
-        int reasonBtnStart = widgets.size() - REASONS.length - 2;
-        for (int i = 0; i < REASONS.length; i++) {
+        int startY = winY + 70;
+        int resultBtnStart = widgets.size() - RESULTS.length - 2;
+        for (int i = 0; i < RESULTS.length; i++) {
             int col = i % 2;
             int row = i / 2;
-            int idx = reasonBtnStart + i;
+            int idx = resultBtnStart + i;
             if (idx >= 0 && idx < widgets.size()) {
                 widgets.get(idx).setPosition(winX + 10 + col * (btnW + 6), startY + row * (btnH + 4));
             }
         }
+        this.stashCheckbox.setPosition(winX + 10, winY + 158);
+        this.banReasonBox.setPosition(winX + 10, winY + 184);
         int submitIdx = widgets.size() - 2;
         int closeIdx = widgets.size() - 1;
         widgets.get(submitIdx).setPosition(winX + 10, winY + WIN_H - 28);

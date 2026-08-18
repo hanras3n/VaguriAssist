@@ -1,6 +1,7 @@
 package com.vaguriassist;
 
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Checkbox;
@@ -72,8 +73,7 @@ public class BanScreen extends Screen {
 
 	private void autoBan(String reason, int defaultDays) {
 		BanSender.sendWithUnfreeze(this.nick, defaultDays, "2.4", reason, true);
-		CheckLogger.logBan(this.nick, reason + ", " + defaultDays + "д, пункт 2.4");
-		this.onClose();
+		Minecraft.getInstance().setScreen(new CheckEndScreen(this.nick, true, "2.4 " + reason));
 	}
 
 	private void sendCustomBan() {
@@ -88,14 +88,16 @@ public class BanScreen extends Screen {
 			paragraph = "2.4";
 		}
 		BanSender.sendWithUnfreeze(this.nick, days, paragraph, reason, this.ipCheckbox.selected());
-		CheckLogger.logBan(this.nick, reason + ", " + days + "д, пункт " + paragraph);
-		this.onClose();
+		String fullReason = paragraph;
+		if (!reason.isEmpty()) {
+			fullReason = paragraph + " " + reason;
+		}
+		Minecraft.getInstance().setScreen(new CheckEndScreen(this.nick, true, fullReason));
 	}
 
 	private void release() {
 		BanSender.sendFreezing(this.nick);
-		CheckLogger.logRelease(this.nick);
-		this.onClose();
+		Minecraft.getInstance().setScreen(new CheckEndScreen(this.nick, false, null));
 	}
 
 	private static int parseDays(String value, int defaultDays) {

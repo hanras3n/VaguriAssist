@@ -59,7 +59,6 @@ public class ChatScanner {
                     currentState = State.AWAITING_INITIAL_DUPE;
                     timeoutTicks = TIMEOUT_TICKS;
                     sendHiddenCommand("dupeip " + originalTarget);
-                    if (ModConfig.INSTANCE.DEBUG_MODE) System.out.println("[VaguriAssist] Auto dupeip for " + originalTarget);
                 }
             }
 
@@ -72,7 +71,6 @@ public class ChatScanner {
                     processedNicks.add(originalTarget.toLowerCase());
                     currentState = State.AWAITING_INITIAL_DUPE;
                     timeoutTicks = TIMEOUT_TICKS;
-                    if (ModConfig.INSTANCE.DEBUG_MODE) System.out.println("[VaguriAssist] Started scanning for " + originalTarget);
                 }
             }
             return true;
@@ -93,7 +91,6 @@ public class ChatScanner {
                                 if (!processedNicks.contains(lower)) {
                                     processedNicks.add(lower);
                                     pendingNicks.add(nick);
-                                    if (ModConfig.INSTANCE.DEBUG_MODE) System.out.println("[VaguriAssist] Queued nick: " + nick);
                                 }
                             }
                             resetState();
@@ -105,7 +102,6 @@ public class ChatScanner {
                         sendHiddenCommand("checkban " + bannedTwink);
                         currentState = State.AWAITING_BAN_CHECK;
                         timeoutTicks = TIMEOUT_TICKS;
-                        if (ModConfig.INSTANCE.DEBUG_MODE) System.out.println("[VaguriAssist] Reverse dupe confirmed for " + bannedTwink + ", checking ban");
                     }
                     break;
                 case AWAITING_BAN_CHECK:
@@ -124,7 +120,6 @@ public class ChatScanner {
                                 Screen screen = new BanConfirmScreen(finalCommand);
                                 Minecraft.getInstance().setScreen(screen);
                             };
-                            if (ModConfig.INSTANCE.DEBUG_MODE) System.out.println("[VaguriAssist] Suggesting: " + finalCommand);
                         } catch (NumberFormatException e) {
                             System.err.println("[VaguriAssist] Failed to parse ban time");
                         }
@@ -151,7 +146,6 @@ public class ChatScanner {
             if (timeoutTicks > 0) {
                 timeoutTicks--;
                 if (timeoutTicks == 0 && currentState != State.IDLE) {
-                    if (ModConfig.INSTANCE.DEBUG_MODE) System.out.println("[VaguriAssist] State timeout, resetting.");
                     resetState();
                 }
             }
@@ -172,7 +166,6 @@ public class ChatScanner {
         timeoutTicks = TIMEOUT_TICKS;
         sendHiddenCommand("dupeip " + nick);
         bulkDelayTicks = BULK_DELAY;
-        if (ModConfig.INSTANCE.DEBUG_MODE) System.out.println("[VaguriAssist] Reverse-checking: " + nick + " (remaining: " + pendingNicks.size() + ")");
     }
 
     private static void sendHiddenCommand(String cmd) {

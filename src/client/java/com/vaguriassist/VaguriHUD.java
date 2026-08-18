@@ -5,6 +5,17 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 
 public class VaguriHUD {
+
+    private static int cachedTimerX = 0;
+    private static int cachedTimerY = 0;
+    private static int cachedTimerW = 0;
+    private static int cachedTimerH = 0;
+
+    public static int getCachedTimerX() { return cachedTimerX; }
+    public static int getCachedTimerY() { return cachedTimerY; }
+    public static int getCachedTimerW() { return cachedTimerW; }
+    public static int getCachedTimerH() { return cachedTimerH; }
+
     public static void render(GuiGraphics guiGraphics) {
         if (!ModConfig.INSTANCE.hudEnabled) return;
 
@@ -57,8 +68,15 @@ public class VaguriHUD {
 			}
 			int timerY = ModConfig.INSTANCE.timerY != -1 ? ModConfig.INSTANCE.timerY
 					: screenHeight - 50;
+			cachedTimerX = timerX;
+			cachedTimerY = timerY;
+			cachedTimerW = timerWidth;
+			cachedTimerH = (int) (mc.font.lineHeight * timerScale);
 			drawScaled(guiGraphics, timerX, timerY, timerScale,
 					() -> drawShimmerText(guiGraphics, mc.font, timerText, timerX, timerY, colorA, colorB, dim));
+		} else {
+			cachedTimerW = 0;
+			cachedTimerH = 0;
 		}
 
 		// Правая панель: ник на проверке и режим
@@ -82,6 +100,8 @@ public class VaguriHUD {
 				guiGraphics.drawString(mc.font, serverLine, panelX + 4, panelY + 2 + lineHeight * 2, withAlpha(0xFF55FF55, dim), true);
 			}
 		}
+
+		ToastNotification.render(guiGraphics, 0f);
 	}
 
 	private static float easeOut(float t) {

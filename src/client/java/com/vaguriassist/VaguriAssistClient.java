@@ -43,6 +43,8 @@ public class VaguriAssistClient implements ClientModInitializer {
 	private static boolean sendingCommand = false;
 	private static String pendingBanCommand = "";
 	private static long pendingBanTime = 0;
+	private static String pendingRawCommand = "";
+	private static long pendingRawTime = 0;
 	private static Runnable pendingScreen = null;
 
 	public static final long WARN_AT_MS = 4 * 60_000L + 30_000L;
@@ -61,6 +63,10 @@ public class VaguriAssistClient implements ClientModInitializer {
 	private static String tabHeader = "";
 	private static String tabFooter = "";
 
+	private static boolean draggingTimer = false;
+	private static int timerDragOffsetX = 0;
+	private static int timerDragOffsetY = 0;
+
 	public static String getDetectedMode() {
 		return detectedMode;
 	}
@@ -75,12 +81,8 @@ public class VaguriAssistClient implements ClientModInitializer {
 	}
 
 	public static void updateScoreboardMode() {
-		if (parseTabText(tabHeader)) {
-			return;
-		}
-		if (parseTabText(tabFooter)) {
-			return;
-		}
+		scanTextForMode(tabHeader);
+		scanTextForMode(tabFooter);
 		Minecraft mc = Minecraft.getInstance();
 		if (mc.player == null || mc.level == null) {
 			return;
@@ -88,77 +90,64 @@ public class VaguriAssistClient implements ClientModInitializer {
 		Scoreboard scoreboard = mc.level.getScoreboard();
 		for (DisplaySlot slot : DisplaySlot.values()) {
 			Objective objective = scoreboard.getDisplayObjective(slot);
-			if (objective != null && scanObjective(objective)) {
-				return;
+			if (objective != null) {
+				scanTextForMode(objective.getDisplayName().getString());
+				for (PlayerScoreEntry entry : objective.getScoreboard().listPlayerScores(objective)) {
+					if (!entry.isHidden()) {
+						scanTextForMode(entry.owner());
+					}
+				}
 			}
 		}
 		for (Objective objective : scoreboard.getObjectives()) {
-			if (scanObjective(objective)) {
-				return;
+			scanTextForMode(objective.getDisplayName().getString());
+			for (PlayerScoreEntry entry : objective.getScoreboard().listPlayerScores(objective)) {
+				if (!entry.isHidden()) {
+					scanTextForMode(entry.owner());
+				}
 			}
 		}
 	}
 
-	private static boolean parseTabText(String text) {
+	private static void scanTextForMode(String text) {
 		if (text == null || text.isEmpty()) {
-			return false;
+			return;
 		}
 		for (String line : text.split("\n")) {
-			if (parseModeLine(line)) {
-				return true;
-			}
+			scanLine(line);
 		}
-		return false;
 	}
 
-	private static boolean scanObjective(Objective objective) {
-		if (ModConfig.INSTANCE.DEBUG_MODE) {
-			System.out.println("[VaguriAssist] SB title: '" + objective.getDisplayName().getString() + "'");
-			for (PlayerScoreEntry entry : objective.getScoreboard().listPlayerScores(objective)) {
-				System.out.println("[VaguriAssist] SB line: '" + entry.owner() + "' = " + entry.value());
-			}
+	private static void scanLine(String raw) {
+		if (raw == null || raw.isEmpty()) {
+			return;
 		}
-		if (parseModeLine(objective.getDisplayName().getString())) {
-			return true;
+		String clean = CLEAN_COLOR_CODES.matcher(raw).replaceAll("").toLowerCase();
+		String mode = null;
+		if (clean.contains("lite120") || clean.contains("lite 1.20") || clean.contains("1.20")) {
+			mode = "lite120";
+		} else if (clean.contains("lite")) {
+			mode = "lite";
+		} else if (clean.contains("classic")) {
+			mode = "classic";
 		}
-		List<PlayerScoreEntry> entries = new ArrayList<>(objective.getScoreboard().listPlayerScores(objective));
-		entries.sort(Comparator.comparingInt(PlayerScoreEntry::value));
-		for (PlayerScoreEntry entry : entries) {
-			if (entry.isHidden()) {
-				continue;
-			}
-			if (parseModeLine(entry.owner())) {
-				return true;
-			}
-		}
-		return false;
-	}
 
-	private static boolean parseModeLine(String raw) {
-		if (raw == null) {
-			return false;
-		}
-		String clean = CLEAN_COLOR_CODES.matcher(raw).replaceAll("").trim();
-		if (clean.isEmpty()) {
-			return false;
-		}
-		Matcher matcher = MODE_NUMBER_PATTERN.matcher(clean);
-		int hashIndex = -1;
 		String numStr = null;
+		Matcher matcher = MODE_NUMBER_PATTERN.matcher(raw);
 		while (matcher.find()) {
-			hashIndex = matcher.start();
 			numStr = matcher.group(1);
 		}
-		if (hashIndex < 0) {
-			return false;
+
+		if (mode != null) {
+			if (detectedMode == null) {
+				detectedMode = mode;
+			}
+			if (numStr != null) {
+				detectedServer = numStr;
+			}
+		} else if (detectedServer.isEmpty() && numStr != null) {
+			detectedServer = numStr;
 		}
-		String name = cleanModeName(clean.substring(0, hashIndex));
-		if (name.isEmpty()) {
-			return false;
-		}
-		detectedMode = name;
-		detectedServer = numStr;
-		return true;
 	}
 
 	private static String cleanModeName(String before) {
@@ -291,22 +280,19 @@ public class VaguriAssistClient implements ClientModInitializer {
 		pendingBanTime = System.currentTimeMillis() + delayMs;
 	}
 
-	public static void playCheckCall(String nick) {
-		Minecraft mc = Minecraft.getInstance();
-		if (mc.player == null) {
-			return;
-		}
-		mc.player.playSound(SoundEvents.PLAYER_LEVELUP, 1.0f, 1.4f);
-		mc.player.displayClientMessage(Component.literal(
-						"§8[§6VaguriAssist§8] §fИгрок §e" + nick + " §fвызван на проверку. ")
-				.append(Component.literal("[Внести проверку]")
-						.withStyle(ChatFormatting.GREEN)
-						.withStyle(style -> style
-								.withClickEvent(new ClickEvent.RunCommand("/vaguriassist applycheck"))
-								.withHoverEvent(new HoverEvent.ShowText(
-										Component.literal("Внести проверку сразу, без меню"))))),
-				false);
+	public static void scheduleRaw(String command, long delayMs) {
+		pendingRawCommand = command;
+		pendingRawTime = System.currentTimeMillis() + delayMs;
 	}
+
+    public static void playCheckCall(String nick) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) {
+            return;
+        }
+        mc.player.playSound(SoundEvents.PLAYER_LEVELUP, 1.0f, 1.4f);
+        pendingScreen = () -> mc.setScreen(new CheckScreen(nick));
+    }
 
 	@Override
 	public void onInitializeClient() {
@@ -338,6 +324,11 @@ public class VaguriAssistClient implements ClientModInitializer {
 				pendingBanCommand = "";
 				sendCommand(command);
 			}
+			if (!pendingRawCommand.isEmpty() && System.currentTimeMillis() >= pendingRawTime) {
+				String command = pendingRawCommand;
+				pendingRawCommand = "";
+				sendRaw(command);
+			}
 			if (pendingScreen != null) {
 				pendingScreen.run();
 				pendingScreen = null;
@@ -348,6 +339,38 @@ public class VaguriAssistClient implements ClientModInitializer {
 					warningPlayed = true;
 					if (client.player != null) {
 						client.player.playSound(SoundEvents.PLAYER_LEVELUP, 1.0f, 1.0f);
+					}
+				}
+			}
+			if (ModConfig.INSTANCE.draggableTimer && !currentNick.isEmpty() && client.screen == null) {
+				long handle = client.getWindow().handle();
+				double[] mxArr = new double[1];
+				double[] myArr = new double[1];
+				GLFW.glfwGetCursorPos(handle, mxArr, myArr);
+				float guiScale = (float) client.getWindow().getGuiScale();
+				int mouseX = (int) (mxArr[0] / guiScale);
+				int mouseY = (int) (myArr[0] / guiScale);
+				boolean mouseDown = GLFW.glfwGetMouseButton(handle, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
+				int tw = VaguriHUD.getCachedTimerW();
+				int th = VaguriHUD.getCachedTimerH();
+				if (mouseDown && !draggingTimer && tw > 0) {
+					int tx = VaguriHUD.getCachedTimerX();
+					int ty = VaguriHUD.getCachedTimerY();
+					if (mouseX >= tx && mouseX <= tx + tw && mouseY >= ty && mouseY <= ty + th) {
+						draggingTimer = true;
+						timerDragOffsetX = mouseX - tx;
+						timerDragOffsetY = mouseY - ty;
+					}
+				}
+				if (draggingTimer) {
+					if (mouseDown) {
+						ModConfig.INSTANCE.timerX = mouseX - timerDragOffsetX;
+						ModConfig.INSTANCE.timerY = mouseY - timerDragOffsetY;
+						ModConfig.INSTANCE.timerX = Math.max(0, Math.min(client.getWindow().getGuiScaledWidth() - tw, ModConfig.INSTANCE.timerX));
+						ModConfig.INSTANCE.timerY = Math.max(0, Math.min(client.getWindow().getGuiScaledHeight() - th, ModConfig.INSTANCE.timerY));
+					} else {
+						draggingTimer = false;
+						ModConfig.save();
 					}
 				}
 			}
@@ -377,6 +400,9 @@ public class VaguriAssistClient implements ClientModInitializer {
 				if (!nick.isEmpty()) {
 					setCurrentNick(nick);
 					playCheckCall(nick);
+					if (ModConfig.INSTANCE.autoWarpLogo) {
+						scheduleRaw("/warp logo", 20);
+					}
 				}
 			}
 			return true;
@@ -404,21 +430,67 @@ public class VaguriAssistClient implements ClientModInitializer {
 								pendingScreen = () -> Minecraft.getInstance().setScreen(new ManualBanScreen());
 								return 1;
 							}))
-					.then(ClientCommandManager.literal("check")
-							.executes(ctx -> {
-								pendingScreen = () -> Minecraft.getInstance().setScreen(new CheckScreen());
+				.then(ClientCommandManager.literal("check")
+						.executes(ctx -> {
+							pendingScreen = () -> Minecraft.getInstance().setScreen(new CheckScreen());
+							return 1;
+						}))
+				.then(ClientCommandManager.literal("addcheck")
+						.executes(ctx -> {
+							pendingScreen = () -> Minecraft.getInstance().setScreen(new ManualCheckScreen());
+							return 1;
+						}))
+				.then(ClientCommandManager.literal("end")
+						.executes(ctx -> {
+							pendingScreen = () -> Minecraft.getInstance().setScreen(
+									new CheckEndScreen(VaguriAssistClient.getCurrentNick(), true, "2.4"));
+							return 1;
+						}))
+				.then(ClientCommandManager.literal("apicheck")
+						.executes(ctx -> {
+							if (ModConfig.INSTANCE.apiToken.isEmpty()) {
+								ctx.getSource().sendFeedback(Component.literal("§cAPI токен не задан! /vaguriassist setapi <token>"));
 								return 1;
-							}))
-					.then(ClientCommandManager.literal("applycheck")
-							.executes(ctx -> {
-								submitCheck();
-								return 1;
-							}))
-					.then(ClientCommandManager.literal("guisetting")
-							.executes(ctx -> {
-								pendingScreen = () -> Minecraft.getInstance().setScreen(new GuiEditScreen());
-								return 1;
-							})));
+							}
+							ctx.getSource().sendFeedback(Component.literal("§7Проверка доступности API..."));
+							JournalAPI.getInstance().checkApiStatus().thenAccept(ok -> {
+								if (ok) {
+									ctx.getSource().sendFeedback(Component.literal("§aAPI работает! (статус OK)"));
+								} else {
+									ctx.getSource().sendFeedback(Component.literal("§cAPI недоступно — ошибка запроса или нет сети"));
+								}
+							});
+							return 1;
+						}))
+			.then(ClientCommandManager.literal("guisetting")
+						.executes(ctx -> {
+							pendingScreen = () -> Minecraft.getInstance().setScreen(new GuiEditScreen());
+							return 1;
+						}))
+				.then(ClientCommandManager.literal("setapi")
+						.then(ClientCommandManager.argument("token", StringArgumentType.greedyString())
+								.executes(ctx -> {
+									String token = StringArgumentType.getString(ctx, "token").trim();
+									ModConfig.INSTANCE.apiToken = token;
+									ModConfig.save();
+									if (token.isEmpty()) {
+										ctx.getSource().sendFeedback(Component.literal("§cAPI токен очищен."));
+									} else {
+										String masked = token.substring(0, Math.min(8, token.length())) + "...";
+										ctx.getSource().sendFeedback(Component.literal("§aAPI токен сохранён: " + masked));
+									}
+									return 1;
+								})))
+				.then(ClientCommandManager.literal("api")
+						.executes(ctx -> {
+							if (ModConfig.INSTANCE.apiToken.isEmpty()) {
+								ctx.getSource().sendFeedback(Component.literal("§cAPI токен не задан. Используй /vaguriassist setapi <token>"));
+							} else {
+								String masked = ModConfig.INSTANCE.apiToken.substring(0, Math.min(8, ModConfig.INSTANCE.apiToken.length())) + "...";
+								ctx.getSource().sendFeedback(Component.literal("§7Текущий токен: " + masked));
+							}
+							return 1;
+						})));
 		});
 
 		HudElementRegistry.addLast(

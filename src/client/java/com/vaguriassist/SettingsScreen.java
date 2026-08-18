@@ -13,7 +13,7 @@ public class SettingsScreen extends Screen {
     @Override
     protected void init() {
         int x = this.width / 2 - 100;
-        int y = this.height / 2 - 60;
+        int y = this.height / 2 - 90;
 
         this.addRenderableWidget(Button.builder(
                 Component.literal("Show HUD: " + (ModConfig.INSTANCE.hudEnabled ? "ON" : "OFF")),
@@ -34,10 +34,10 @@ public class SettingsScreen extends Screen {
         ).bounds(x, y + 25, 200, 20).build());
 
         this.addRenderableWidget(Button.builder(
-                Component.literal("Debug Mode: " + (ModConfig.INSTANCE.DEBUG_MODE ? "ON" : "OFF")),
+                Component.literal("Drag Timer: " + (ModConfig.INSTANCE.draggableTimer ? "ON" : "OFF")),
                 (b) -> {
-                    ModConfig.INSTANCE.DEBUG_MODE = !ModConfig.INSTANCE.DEBUG_MODE;
-                    b.setMessage(Component.literal("Debug Mode: " + (ModConfig.INSTANCE.DEBUG_MODE ? "ON" : "OFF")));
+                    ModConfig.INSTANCE.draggableTimer = !ModConfig.INSTANCE.draggableTimer;
+                    b.setMessage(Component.literal("Drag Timer: " + (ModConfig.INSTANCE.draggableTimer ? "ON" : "OFF")));
                     ModConfig.save();
                 }
         ).bounds(x, y + 50, 200, 20).build());
@@ -49,18 +49,48 @@ public class SettingsScreen extends Screen {
                     b.setMessage(Component.literal("Auto Unfreeze: " + (ModConfig.INSTANCE.autoUnfreeze ? "ON" : "OFF")));
                     ModConfig.save();
                 }
+        ).bounds(x, y + 100, 200, 20).build());
+
+        this.addRenderableWidget(Button.builder(
+                Component.literal("Авто-ТП /warp logo: " + (ModConfig.INSTANCE.autoWarpLogo ? "ON" : "OFF")),
+                (b) -> {
+                    ModConfig.INSTANCE.autoWarpLogo = !ModConfig.INSTANCE.autoWarpLogo;
+                    b.setMessage(Component.literal("Авто-ТП /warp logo: " + (ModConfig.INSTANCE.autoWarpLogo ? "ON" : "OFF")));
+                    ModConfig.save();
+                }
         ).bounds(x, y + 75, 200, 20).build());
+
+        this.addRenderableWidget(Button.builder(
+                Component.literal("Режим вноса проверок: " + getLogModeLabel()),
+                (b) -> {
+                    ModConfig.INSTANCE.checkLogMode = "offline".equals(ModConfig.INSTANCE.checkLogMode) ? "online" : "offline";
+                    b.setMessage(Component.literal("Режим вноса проверок: " + getLogModeLabel()));
+                    ModConfig.save();
+                }
+        ).bounds(x, y + 125, 200, 20).build());
 
         this.addRenderableWidget(Button.builder(
                 Component.literal("Done"),
                 (b) -> this.onClose()
-        ).bounds(x, y + 120, 200, 20).build());
+        ).bounds(x, y + 215, 200, 20).build());
+    }
+
+    private static String getLogModeLabel() {
+        return "offline".equals(ModConfig.INSTANCE.checkLogMode) ? "Оффлайн (txt)" : "Онлайн (журнал)";
     }
 
     @Override
     public void render(GuiGraphics g, int mX, int mY, float p) {
         super.render(g, mX, mY, p);
-        g.drawCenteredString(this.font, this.title, this.width / 2, this.height / 2 - 80, 0xFFFFFFFF);
+        g.drawCenteredString(this.font, this.title, this.width / 2, this.height / 2 - 110, 0xFFFFFFFF);
+        if (ModConfig.INSTANCE.apiToken.isEmpty()) {
+            g.drawCenteredString(this.font, "§cAPI токен не задан — используй /vaguriassist setapi <token>",
+                    this.width / 2, this.height / 2 + 145, 0xFFFF5555);
+        } else {
+            String masked = ModConfig.INSTANCE.apiToken.substring(0, Math.min(8, ModConfig.INSTANCE.apiToken.length())) + "...";
+            g.drawCenteredString(this.font, "§7API токен: " + masked,
+                    this.width / 2, this.height / 2 + 145, 0x888888);
+        }
     }
 
     @Override

@@ -28,6 +28,23 @@ public final class CheckLogger {
         }
     }
 
+    public static void logCheck(String nick, String reason, String mode, int anarchyNumber, boolean online) {
+        if (online) {
+            return;
+        }
+        log("Проверка: " + nick
+                + " | Режим: " + mode
+                + " | Анка: #" + anarchyNumber
+                + " | Причина: " + reason);
+    }
+
+    public static void logEnd(String nick, String result, boolean destroyStash, String banReason) {
+        log("Завершение: " + nick
+                + " | Результат: " + result
+                + " | Снос стеша: " + (destroyStash ? "да" : "нет")
+                + " | banReason: " + (banReason == null ? "-" : banReason));
+    }
+
     public static void logBan(String nick, String reason) {
         log("Проверка: " + nick + modeInfo() + " | Результат: забанили (" + reason + ")");
     }

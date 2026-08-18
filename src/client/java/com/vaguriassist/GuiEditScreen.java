@@ -80,8 +80,43 @@ public class GuiEditScreen extends Screen {
         ban.scale = ModConfig.INSTANCE.banScale;
         elements.add(ban);
 
+        int toastW = 160;
+        int toastH = Math.max(20, ModConfig.INSTANCE.toastHeight / 5);
+        int toastX = "right".equals(ModConfig.INSTANCE.toastSide)
+                ? this.width - toastW - 4 : 4;
+        int toastY = ModConfig.INSTANCE.toastY != -1 ? ModConfig.INSTANCE.toastY : ModConfig.INSTANCE.toastHeight;
+        Element toast = new Element("toast", "Уведомления", toastX, toastY, toastW, toastH);
+        toast.scale = 1.0f;
+        elements.add(toast);
+
+        this.addRenderableWidget(Button.builder(Component.literal("Сторона уведомлений: " + ModConfig.INSTANCE.toastSide),
+                (b) -> {
+                    ModConfig.INSTANCE.toastSide = "left".equals(ModConfig.INSTANCE.toastSide) ? "right" : "left";
+                    b.setMessage(Component.literal("Сторона уведомлений: " + ModConfig.INSTANCE.toastSide));
+                    ModConfig.save();
+                }
+        ).bounds(this.width / 2 - 100, this.height - 56, 200, 20).build());
+
+        int[] heightOptions = {50, 75, 100, 125, 150, 200};
+        int currentHeightIdx = 0;
+        for (int i = 0; i < heightOptions.length; i++) {
+            if (heightOptions[i] == ModConfig.INSTANCE.toastHeight) {
+                currentHeightIdx = i;
+                break;
+            }
+        }
+        final int heightIdx = currentHeightIdx;
+        this.addRenderableWidget(Button.builder(Component.literal("Высота уведомлений: " + ModConfig.INSTANCE.toastHeight),
+                (b) -> {
+                    int nextIdx = (heightIdx + 1) % heightOptions.length;
+                    ModConfig.INSTANCE.toastHeight = heightOptions[nextIdx];
+                    b.setMessage(Component.literal("Высота уведомлений: " + ModConfig.INSTANCE.toastHeight));
+                    ModConfig.save();
+                }
+        ).bounds(this.width / 2 - 100, this.height - 32, 200, 20).build());
+
         this.addRenderableWidget(Button.builder(Component.literal("Готово"), b -> this.onClose())
-                .bounds(this.width / 2 - 50, this.height - 30, 100, 20).build());
+                .bounds(this.width / 2 - 50, this.height - 8, 100, 20).build());
     }
 
     private boolean isOnSlider(Element e, double mouseX, double mouseY) {
@@ -172,6 +207,9 @@ public class GuiEditScreen extends Screen {
                     ModConfig.INSTANCE.banWindowY = dragging.y;
                     ModConfig.INSTANCE.banScale = dragging.scale;
                     break;
+                case "toast":
+                    ModConfig.INSTANCE.toastY = dragging.y;
+                    break;
             }
             ModConfig.save();
             dragging.moving = false;
@@ -219,13 +257,15 @@ public class GuiEditScreen extends Screen {
                 guiGraphics.fill(e.x + 2, e.y + 12, e.x + w - 2, e.y + 14, 0xFFFF5555);
             }
 
-            int sliderY = e.y + h + 6;
-            guiGraphics.fill(e.x, sliderY, e.x + w, sliderY + 4, 0xAA555555);
-            int handleX = e.x + 2 + (int) (((e.scale - MIN_SCALE) / (MAX_SCALE - MIN_SCALE)) * (w - 4));
-            guiGraphics.fill(handleX - 2, sliderY - 2, handleX + 2, sliderY + 6, 0xFF66CCFF);
+            if (!e.id.equals("toast")) {
+                int sliderY = e.y + h + 6;
+                guiGraphics.fill(e.x, sliderY, e.x + w, sliderY + 4, 0xAA555555);
+                int handleX = e.x + 2 + (int) (((e.scale - MIN_SCALE) / (MAX_SCALE - MIN_SCALE)) * (w - 4));
+                guiGraphics.fill(handleX - 2, sliderY - 2, handleX + 2, sliderY + 6, 0xFF66CCFF);
 
-            String scaleLabel = String.format("%s: x%.2f", e.label, e.scale);
-            guiGraphics.drawString(this.font, scaleLabel, e.x + 4, sliderY + 6, 0xFFFFFFFF, false);
+                String scaleLabel = String.format("%s: x%.2f", e.label, e.scale);
+                guiGraphics.drawString(this.font, scaleLabel, e.x + 4, sliderY + 6, 0xFFFFFFFF, false);
+            }
         }
     }
 
